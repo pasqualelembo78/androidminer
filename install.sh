@@ -8,9 +8,36 @@ APP_DIR="androidminer"
 echo_info() { echo -e "\e[34m[INFO]\e[0m $1"; }
 echo_err()  { echo -e "\e[31m[ERRORE]\e[0m $1"; }
 
-# === 0. IMPOSTA VARIABILE ANDROID_HOME ===
+# === 0. IMPOSTA VARIABILE ANDROID_HOME E SISTEMA CMDLINE-TOOLS ===
 echo_info "Impostazione variabili Android SDK..."
+
+unset ANDROID_SDK_ROOT   # <-- QUI rimuoviamo la variabile che crea conflitti
+
 export ANDROID_HOME="/root/Android/Sdk"
+export CMDLINE_PATH="$ANDROID_HOME/cmdline-tools"
+
+# Se il link 'latest' non esiste, crealo
+if [ ! -f "$CMDLINE_PATH/latest/bin/sdkmanager" ]; then
+  if [ -d "$CMDLINE_PATH" ]; then
+    LATEST_VERSION=$(ls "$CMDLINE_PATH" | grep -E '^[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+    if [ -n "$LATEST_VERSION" ]; then
+      mkdir -p "$CMDLINE_PATH/cmdline-tools"
+      cp -r "$CMDLINE_PATH/$LATEST_VERSION/" "$CMDLINE_PATH/cmdline-tools"
+      ln -sfn "$CMDLINE_PATH/cmdline-tools" "$CMDLINE_PATH/latest"
+      echo_info "✅ Link simbolico 'latest' creato -> $LATEST_VERSION"
+    else
+      echo_err "❌ Nessuna versione trovata in $CMDLINE_PATH"
+      exit 1
+    fi
+  else
+    echo_err "❌ cmdline-tools non trovato in $CMDLINE_PATH"
+    exit 1
+  fi
+else
+  echo_info "✅ sdkmanager già configurato"
+fi
+
+# Aggiorna PATH
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$PATH"
 
 # === 1. CLONA IL PROGETTO SE NON ESISTE ===
@@ -26,25 +53,18 @@ fi
 # === 2. INSTALLA DIPENDENZE SISTEMA ===
 echo_info "Installazione dipendenze di sistema..."
 apt update
-apt install -y curl git cmake unzip make openjdk-17-jdk build-essential
+apt install -y curl git cmake unzip make openjdk-17-jdk build-essential python-is-python3
+
+# Usa sdkmanager senza conflitti
+sdkmanager --install "ndk;25.1.8937393"
 
 # === 3. INSTALLA NODE.JS 17.1.0 CON N ===
 echo_info "Installazione Node.js con 'n'..."
-
-# Installa Node.js temporaneo per poter usare npm
 apt install -y nodejs npm
-
-# Installa 'n' globalmente
 npm install -g n
-
-# Usa 'n' per installare Node.js 17.1.0
 n 17.1.0
-
-# Forza il link simbolico corretto (alcuni sistemi lo richiedono)
 ln -sf /usr/local/bin/node /usr/bin/node
 ln -sf /usr/local/bin/npm /usr/bin/npm
-
-# Installa yarn globalmente
 npm install -g yarn
 
 # === 4. CONTROLLA ANDROID SDK ===
@@ -55,10 +75,11 @@ if [ -z "$ANDROID_HOME" ]; then
 fi
 
 # === 5. COMPILA XMRig E LIBRERIE ===
-echo_info "Compilazione lib-builder (xmrig, hwloc, libuv)..."
-cd xmrig/lib-builder || { echo_err "lib-builder non trovato"; exit 1; }
-make install || { echo_err "Errore make install"; exit 1; }
-cd ../../
+# (qui eventualmente scommenta se serve)
+# echo_info "Compilazione lib-builder (xmrig, hwloc, libuv)..."
+# cd /opt/androidminer/xmrig/lib-builder || { echo_err "lib-builder non trovato"; exit 1; }
+# make install || { echo_err "Errore make install"; exit 1; }
+# cd ../../
 
 # === 6. INSTALLA DIPENDENZE REACT NATIVE ===
 echo_info "Installazione dipendenze yarn..."
@@ -69,7 +90,14 @@ echo_info "Installazione e avvio server con PM2..."
 npm install -g pm2
 pm2 start "yarn start" --name androidminer
 pm2 save
-pm2 startup systemd -u root --hp /root | bash
+
+startup_cmd=$(pm2 startup systemd -u root --hp /root | grep sudo)
+if [ -n "$startup_cmd" ]; then
+  echo_info "Configurazione systemd per PM2 in corso..."
+  eval "$startup_cmd"
+else
+  echo_err "Impossibile ottenere il comando di startup PM2 da eseguire."
+fi
 
 # === 8. GENERA KEYSTORE E FILE DI FIRMA ===
 cd android || { echo_err "Cartella android non trovata"; exit 1; }
@@ -94,6 +122,11 @@ MYAPP_RELEASE_STORE_FILE=release.keystore
 MYAPP_RELEASE_KEY_ALIAS=mevakey
 MYAPP_RELEASE_STORE_PASSWORD=mevapass
 MYAPP_RELEASE_KEY_PASSWORD=mevapass
+
+android.useAndroidX=true
+android.enableJetifier=true
+
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
 EOF
 
 echo_info "Controllo configurazione firma in app/build.gradle..."
@@ -118,7 +151,7 @@ if ! grep -q "signingConfigs" app/build.gradle; then
 else
   echo_info "✅ Configurazione firma già presente in build.gradle"
 fi
-
+# se non funziona cambiare in build.gradle /opt/androidminer/node_modules/@react-native-community/blur/android - blurview:1.6.6 con implementation 'com.github.Dimezis:BlurView:version-# 1.6.6'
 # === 9. COMPILA APK FIRMATA RELEASE ===
 echo_info "Compilazione APK firmata release..."
 ./gradlew clean
