@@ -8,23 +8,46 @@ APP_DIR="androidminer"
 echo_info() { echo -e "\e[34m[INFO]\e[0m $1"; }
 echo_err()  { echo -e "\e[31m[ERRORE]\e[0m $1"; }
 
-# === 1. CLONA IL PROGETTO ===
-echo_info "Clonazione del repository..."
-git clone "$GITHUB_REPO" || { echo_err "Errore durante il clone"; exit 1; }
-cd "$APP_DIR" || exit 1
+# === 0. IMPOSTA VARIABILE ANDROID_HOME ===
+echo_info "Impostazione variabili Android SDK..."
+export ANDROID_HOME="/root/Android/Sdk"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$PATH"
+
+# === 1. CLONA IL PROGETTO SE NON ESISTE ===
+if [ -d "$APP_DIR" ]; then
+  echo_info "Directory $APP_DIR già esistente. Salto clonazione."
+  cd "$APP_DIR" || { echo_err "Errore nell'accesso alla directory $APP_DIR"; exit 1; }
+else
+  echo_info "Clonazione del repository..."
+  git clone "$GITHUB_REPO" || { echo_err "Errore durante il clone"; exit 1; }
+  cd "$APP_DIR" || exit 1
+fi
 
 # === 2. INSTALLA DIPENDENZE SISTEMA ===
 echo_info "Installazione dipendenze di sistema..."
 apt update
 apt install -y curl git cmake unzip make openjdk-17-jdk build-essential
 
-# === 3. INSTALLA NODE.JS 17.1.0 ===
-echo_info "Installazione Node.js 17.1.0..."
-curl -fsSL https://deb.nodesource.com/setup_17.x | bash -
-apt install -y nodejs
+# === 3. INSTALLA NODE.JS 17.1.0 CON N ===
+echo_info "Installazione Node.js con 'n'..."
+
+# Installa Node.js temporaneo per poter usare npm
+apt install -y nodejs npm
+
+# Installa 'n' globalmente
+npm install -g n
+
+# Usa 'n' per installare Node.js 17.1.0
+n 17.1.0
+
+# Forza il link simbolico corretto (alcuni sistemi lo richiedono)
+ln -sf /usr/local/bin/node /usr/bin/node
+ln -sf /usr/local/bin/npm /usr/bin/npm
+
+# Installa yarn globalmente
 npm install -g yarn
 
-# === 4. CONTROLLA O INSTALLA ANDROID SDK/NDK ===
+# === 4. CONTROLLA ANDROID SDK ===
 echo_info "Verifica Android SDK/NDK..."
 if [ -z "$ANDROID_HOME" ]; then
   echo_err "Variabile ANDROID_HOME non impostata. Interrompo."
