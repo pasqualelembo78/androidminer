@@ -1,11 +1,9 @@
 import React from 'react';
-import { KeyboardAvoidingView, TextInput, Appearance, StyleSheet, Platform } from 'react-native';
+import { KeyboardAvoidingView, TextInput, Appearance, StyleSheet, Platform, Alert } from 'react-native';
 import * as JSON5 from 'json5';
 import {
   Card, View, Button,
 } from 'react-native-ui-lib';
-import { AnsiComponent } from 'react-native-ansi-view';
-import { useStyledCode } from '../../../../../core/utils/ansi';
 import DocumentPicker from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
 import { EditAdvanceCardProps } from './index';
@@ -14,12 +12,12 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
   { setLocalState, localState },
 ) => {
   const [user, setUser] = React.useState('');
+  const [threads, setThreads] = React.useState('1');
+  const [poolUrl, setPoolUrl] = React.useState('melatv.it:3333');
   const [code, setCode] = React.useState<string>('{}');
 
   const isDark = Appearance.getColorScheme() === 'dark';
-  const { styledCode, cleanCode } = useStyledCode(code, isDark);
 
-  // All'avvio carichiamo il config esistente, e se contiene pools[0].user, lo usiamo per precompilare il modulo
   React.useEffect(() => {
     const data = localState.config?.toString() || '{}';
     try {
@@ -28,46 +26,58 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
       if (parsed?.pools && parsed.pools[0]?.user) {
         setUser(parsed.pools[0].user);
       }
+      if (parsed?.cpu?.threads) {
+        setThreads(parsed.cpu.threads.toString());
+      }
+      if (parsed?.pools && parsed.pools[0]?.url) {
+        setPoolUrl(parsed.pools[0].url);
+      }
     } catch (er) {
       console.log(er);
     }
   }, []);
 
-  // Ogni volta che cambia il 'user', aggiorno il JSON completo e setto il code
+  // Aggiorna JSON quando cambiano user, threads o poolUrl
   React.useEffect(() => {
+    let threadNum = parseInt(threads, 10);
+    if (isNaN(threadNum) || threadNum < 1) {
+      threadNum = 1;
+    } else if (threadNum > 8) {
+      // Limitiamo a max 8 thread (o cambia in base a hw reale)
+      threadNum = 8;
+    }
+
     const jsonObj = {
-      "autosave": false,
+      autosave: true,
       "donate-level": 0,
-      "cpu": { "enabled": true },
-      "pools": [
+      cpu: { enabled: true, threads: threadNum },
+      pools: [
         {
-          "url": "melatv.it:3333",
-          "user": user,
-          "pass": "x",
-          "keepalive": true,
-          "nicehash": false,
-          "variant": "trtl",
-          "algo": "cryptonight-pico/trtl"
+          url: poolUrl.trim() || "melatv.it:3333",
+          user,
+          pass: "x",
+          keepalive: true,
+          nicehash: false,
+          variant: "trtl",
+          algo: "cryptonight-pico/trtl"
         }
       ],
       "log-file": null,
-      "background": false,
-      "randomx": { "mode": "fast" },
-      "retries": 3,
+      background: false,
+      randomx: { mode: "fast" },
+      retries: 3,
       "retry-pause": 5,
       "print-time": 60,
-      "verbose": 2
+      verbose: 2
     };
     setCode(JSON.stringify(jsonObj, null, 2));
-  }, [user]);
+  }, [user, threads, poolUrl]);
 
-  // Quando l'utente modifica manualmente il codice, aggiorno lo stato anche del codice pulito (cleanCode)
   React.useEffect(() => {
     setLocalState((oldState) => ({
       ...oldState,
-      config: cleanCode,
+      config: code,
     }));
-    console.log(cleanCode);
   }, [code]);
 
   const onLoadFile = async () => {
@@ -76,9 +86,7 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
         type: [DocumentPicker.types.plainText, DocumentPicker.types.allFiles],
       });
       const file = res[0];
-
       const fileContent = await RNFS.readFile(file.uri, 'utf8');
-
       try {
         const parsed = JSON5.parse(fileContent);
         const formatted = JSON.stringify(parsed, null, 2);
@@ -86,14 +94,20 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
         if (parsed?.pools && parsed.pools[0]?.user) {
           setUser(parsed.pools[0].user);
         }
+        if (parsed?.cpu?.threads) {
+          setThreads(parsed.cpu.threads.toString());
+        }
+        if (parsed?.pools && parsed.pools[0]?.url) {
+          setPoolUrl(parsed.pools[0].url);
+        }
       } catch (err) {
-        alert('Errore nel parsing del file JSON');
+        Alert.alert('Errore', 'Errore nel parsing del file JSON');
       }
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         // Annullato dall'utente, niente da fare
       } else {
-        alert('Errore durante la selezione del file');
+        Alert.alert('Errore', 'Errore durante la selezione del file');
       }
     }
   };
@@ -102,11 +116,7 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
     <Card style={{ flexGrow: 1 }} useSafeArea>
       <View centerV spread padding-20 paddingB-5>
         <View row>
-          <Card.Section
-            content={[
-              { text: 'Indirizzo Wallet (user)', text65: true, $textDefault: true },
-            ]}
-          />
+          <Card.Section content={[{ text: 'Indirizzo Wallet (user)', text65: true, $textDefault: true }]} />
         </View>
         <TextInput
           placeholder="Inserisci indirizzo wallet"
@@ -116,22 +126,44 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
           autoCorrect={false}
           style={[
             styles.textInput,
-            {
-              color: isDark ? 'white' : 'black',
-              backgroundColor: isDark ? '#000' : '#fff',
-              marginBottom: 10,
-              height: 40,
-            },
+            { color: isDark ? 'white' : 'black', backgroundColor: isDark ? '#000' : '#fff', marginBottom: 10, height: 40 },
           ]}
         />
+
+        <View row>
+          <Card.Section content={[{ text: 'Numero di thread CPU (1-8)', text65: true, $textDefault: true }]} />
+        </View>
+        <TextInput
+          placeholder="Numero di thread"
+          value={threads}
+          onChangeText={setThreads}
+          keyboardType="numeric"
+          style={[
+            styles.textInput,
+            { color: isDark ? 'white' : 'black', backgroundColor: isDark ? '#000' : '#fff', marginBottom: 10, height: 40 },
+          ]}
+        />
+
+        <View row>
+          <Card.Section content={[{ text: 'Pool URL', text65: true, $textDefault: true }]} />
+        </View>
+        <TextInput
+          placeholder="Indirizzo pool mining"
+          value={poolUrl}
+          onChangeText={setPoolUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[
+            styles.textInput,
+            { color: isDark ? 'white' : 'black', backgroundColor: isDark ? '#000' : '#fff', marginBottom: 10, height: 40 },
+          ]}
+        />
+
         <Button label="Carica file JSON" onPress={onLoadFile} />
       </View>
 
       <View spread padding-20 paddingT-0 paddingB-20 style={{ flexGrow: 1 }}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <TextInput
             multiline
             scrollEnabled
@@ -142,11 +174,7 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
             textAlignVertical="top"
             style={[
               styles.textInput,
-              {
-                color: isDark ? 'white' : 'black',
-                backgroundColor: isDark ? '#000' : '#fff',
-                flex: 1,
-              },
+              { color: isDark ? 'white' : 'black', backgroundColor: isDark ? '#000' : '#fff', flex: 1 },
             ]}
           />
         </KeyboardAvoidingView>
@@ -159,7 +187,7 @@ const styles = StyleSheet.create({
   textInput: {
     borderRadius: 5,
     padding: 10,
-    fontFamily: 'monospace',
+    fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
   },
 });
 
