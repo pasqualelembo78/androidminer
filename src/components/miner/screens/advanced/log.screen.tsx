@@ -81,8 +81,8 @@ const LogScreen:React.FC<ViewProps> = () => {
         centerV
       >
         <View row centerV>
-          <Text text60>Miner Log</Text>
-          <Text text80 marginL-10>(last 100 rows)</Text>
+          <Text text60>Registro Miner</Text>
+          <Text text80 marginL-10>(Ultime 100 righe)</Text>
         </View>
         <Button
           size={Button.sizes.small}
@@ -120,7 +120,7 @@ const LogScreen:React.FC<ViewProps> = () => {
         }}
         secondaryButton={{
           size: Button.sizes.medium,
-          label: 'Clear',
+          label: 'Pulisci',
           onPress: clearLog,
           backgroundColor: Colors.$backgroundDangerHeavy,
           link: false,

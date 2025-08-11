@@ -46,7 +46,7 @@ export const AppNavigator:React.FC<ViewProps> = () => {
         component={AppTabs}
         // eslint-disable-next-line react/jsx-one-expression-per-line
         options={{
-          title: 'XMRig for Android',
+          title: 'MevaCoin Miner',
           headerTitleContainerStyle: { marginLeft: 10 },
           headerRightContainerStyle: { marginRight: 10 },
           headerRight: () => (
@@ -62,7 +62,7 @@ export const AppNavigator:React.FC<ViewProps> = () => {
         name="Configuration"
         component={ConfigurationEditScreen}
         getId={({ params }: any) => params.id}
-        options={{ title: 'XMRig for Android | Configurations' }}
+        options={{ title: 'MevaCoin Miner | Configurations' }}
       />
     </Stack.Navigator>
   );

@@ -34,7 +34,7 @@ const MinerScreen = () => {
       <View flex paddingH-10>
         <ScrollView nestedScrollEnabled>
           <View flex row spread centerV>
-            <Text text60>Miner Statistics</Text>
+            <Text text60>Statistiche</Text>
             <View flex flex-1 right paddingH-10>
               <Text text80>
                 {CPUTemp.toFixed(2)}

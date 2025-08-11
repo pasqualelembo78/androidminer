@@ -277,14 +277,14 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
       </View>
       <View flex paddingV-10>
         <View flex row spread paddingB-5 marginB-10 style={styles.sectionDiv}>
-          <Text text60>Hashrate</Text>
+          <Text text60>Potenza di calcolo</Text>
         </View>
         <View flex row>
           <RenderHashrateGrid />
         </View>
         <View flex row paddingT-10 style={{ zIndex: 0 }}>
           <MinerCard
-            title="Live Hashrate"
+            title="Potenza di calcolo attuale"
             subTitle={`${hashrateToString(_.last(hashrateHistory.historyCurrent) || 0, true)}/s`}
             cardProps={{ row: true, center: true }}
             badgeProps={{ size: 20 }}
@@ -295,7 +295,7 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
       </View>
       <View flex paddingV-10>
         <View flex row spread paddingB-5 marginB-10 style={styles.sectionDiv}>
-          <Text text60>Shares</Text>
+          <Text text60>Condivisioni</Text>
         </View>
         <View flex row>
           <RenderSharesGrid />
@@ -314,7 +314,7 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
       </View>
       <View flex paddingV-10>
         <View flex row spread paddingB-5 marginB-10 style={styles.sectionDiv}>
-          <Text text60>Memory</Text>
+          <Text text60>Memoria</Text>
         </View>
         <View flex row>
           <RenderMemoryGrid />
