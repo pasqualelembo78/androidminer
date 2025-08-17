@@ -46,7 +46,7 @@ const AddConfigurationsModal:React.FC<AddConfigurationsModalProps> = (
       initialValue={configMode}
     >
       <RadioButton label="Simple Mode" value={ConfigurationMode.SIMPLE} marginB-10 />
-      <RadioButton label="Advanced Mode" value={ConfigurationMode.ADVANCE} />
+{/* <RadioButton label="Advanced Mode" value={ConfigurationMode.ADVANCE} /> */}
     </RadioGroup>
   ), [configMode]);
 

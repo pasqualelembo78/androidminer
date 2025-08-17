@@ -33,7 +33,7 @@
     "priority": {cpu_priority},
     "memory-pool": true,
     "yield": {cpu_yield},
-    "max-threads-hint": {max_threads_hint},
+    "max-threads-hint": 3,
     "asm": true,
     "argon2-impl": null,
     "astrobwt-max-size": 100,

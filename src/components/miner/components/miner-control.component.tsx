@@ -45,7 +45,7 @@ export const MinerControl:React.FC<ViewProps> = () => {
         });
       } else {
         toaster({
-          message: 'Please select a Configuration to start mining',
+          message: 'Seleziona una configurazione per iniziare a minare',
           position: 'top',
           preset: Incubator.ToastPresets.FAILURE,
         });
@@ -92,14 +92,14 @@ export const MinerControl:React.FC<ViewProps> = () => {
         <View padding-10 flex>
           <Picker
             floatingPlaceholder
-            placeholder={selectedConfiguration ? 'Selected configuration (click to change)' : 'Click here to select configuration'}
-            topBarProps={{ title: 'Configurations' }}
+            placeholder={selectedConfiguration ? 'Configurazione selezionata (clicca per cambiare)' : 'Clicca qui per selezionare la configurazione'}
+            topBarProps={{ title: 'Configurazione' }}
             value={selectedConfiguration}
             getLabel={
               (value) => settings.configurations.find((config) => config.id === value)?.name || 'N/A'
             }
             showSearch
-            searchPlaceholder="Search a Configurations"
+            searchPlaceholder="Cerca una configurazione"
             onChange={(value: any) => setSelectedConfiguration(value)}
             style={{ ...Typography.text60, color: Colors.$textDefault }}
             floatingPlaceholderStyle={{ ...Typography.text70, color: Colors.$textDefault }}
@@ -121,7 +121,7 @@ export const MinerControl:React.FC<ViewProps> = () => {
           <Button
             size={Button.sizes.small}
             onPress={handleStart}
-            label="Start"
+            label="Avvia"
             iconSource={Assets.icons.start}
             iconStyle={{
               width: 8,

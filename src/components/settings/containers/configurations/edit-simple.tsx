@@ -1,26 +1,19 @@
 import React, { Suspense } from 'react';
-import {
-  ScrollView,
-} from 'react-native';
-import {
-  LoaderScreen,
-  View, ViewProps,
-} from 'react-native-ui-lib';
-import {
-  ISimpleConfiguration,
-} from '../../../../core/settings/settings.interface';
+import { ScrollView } from 'react-native';
+import { LoaderScreen, View, ViewProps } from 'react-native-ui-lib';
+import { ISimpleConfiguration } from '../../../../core/settings/settings.interface';
 
 const EditSimpleForkCard = React.lazy(() => import('./edit-simple/edit-simple-fork.card'));
 const EditSimplePoolCard = React.lazy(() => import('./edit-simple/edit-simple-pool.card'));
 const EditSimpleCPUCard = React.lazy(() => import('./edit-simple/edit-simple-cpu.card'));
-const EditSimpleAlgorithemsCard = React.lazy(() => import('./edit-simple/edit-simple-algorithems.card'));
+const EditSimpleWalletCard = React.lazy(() => import('./edit-simple/edit-simple-wallet.card'));
 
 type ConfigurationEditSimpleProps = ViewProps & {
     configuration: ISimpleConfiguration;
     onUpdate: (configurationData: ISimpleConfiguration) => void;
 };
 
-export const ConfigurationEditSimple:React.FC<ConfigurationEditSimpleProps> = ({
+export const ConfigurationEditSimple: React.FC<ConfigurationEditSimpleProps> = ({
   configuration,
   onUpdate,
 }) => {
@@ -39,7 +32,7 @@ export const ConfigurationEditSimple:React.FC<ConfigurationEditSimpleProps> = ({
         <View height={10} />
         <EditSimpleCPUCard localState={localState} setLocalState={setLocalState} />
         <View height={10} />
-        <EditSimpleAlgorithemsCard localState={localState} setLocalState={setLocalState} />
+        <EditSimpleWalletCard localState={localState} setLocalState={setLocalState} />
       </ScrollView>
     </Suspense>
   );

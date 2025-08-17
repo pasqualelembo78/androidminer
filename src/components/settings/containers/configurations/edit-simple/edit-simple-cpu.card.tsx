@@ -1,7 +1,7 @@
 import { merge } from 'lodash/fp';
 import React from 'react';
 import {
-  Card, Colors, Incubator, Switch, Text, View, RadioGroup, RadioButton, SkeletonView,
+  Card, Colors, Incubator, Switch, Text, View, SkeletonView,
 } from 'react-native-ui-lib';
 import { StyleSheet } from 'react-native';
 import { EditSimpleCardProps } from './index';
@@ -9,7 +9,6 @@ import {
   cpuValidator,
   maxThreadsHintValidator, priorityValidator,
 } from '../../../../../core/utils/validators';
-import { RandomXMode } from '../../../../../core/settings/settings.interface';
 
 export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
   { setLocalState, localState },
@@ -64,35 +63,7 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
             or maximum hashrate `OFF`.
           </Text>
         </View>
-        <View flex paddingT-10>
-          <View marginB-10>
-            <Text text80 $textNeutralLight flex row marginB-2>RandomX Mode</Text>
-            <RadioGroup
-              onValueChange={(value: RandomXMode) => setLocalState((oldState) => merge(
-                oldState,
-                {
-                  properties: {
-                    cpu: {
-                      random_x_mode: value,
-                    },
-                  },
-                },
-              ))}
-              initialValue={localState.properties?.cpu?.random_x_mode}
-              marginB-5
-            >
-              <View row spread>
-                <RadioButton label="Auto" value={RandomXMode.AUTO} />
-                <RadioButton label="Fast" value={RandomXMode.FAST} />
-                <RadioButton label="Light" value={RandomXMode.LIGHT} />
-              </View>
-            </RadioGroup>
-            <Text text100 $textNeutralLight row>
-              RandomX mining mode: "auto", "fast" (2 GB memory),
-              "light" (256 MB memory).
-            </Text>
-          </View>
-        </View>
+
         <View flex paddingT-10>
           <Incubator.TextField
             placeholder="Priority"
@@ -132,6 +103,7 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
             Default: null - doesn't change priority.
           </Text>
         </View>
+
         <View flex paddingT-10>
           <Incubator.TextField
             placeholder="Max Threads Hint"
@@ -202,7 +174,6 @@ const EditSimpleCPUCardSkeleton: React.FC<EditSimpleCardProps> = (props) => {
       customValue={props}
       showContent={loaded}
       renderContent={
-        // eslint-disable-next-line react/jsx-props-no-spreading
         (customProps: EditSimpleCardProps) => (<EditSimpleCPUCard {...customProps} />)
       }
       times={3}

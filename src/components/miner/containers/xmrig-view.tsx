@@ -143,13 +143,13 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
         },
         {
           renderCustomItem: () => (
-            <GridCard title="Cores" text={minerData?.cpu.cores || 'N/A'}>
+            <GridCard title="Core" text={minerData?.cpu.cores || 'N/A'}>
               <Card.Image source={Assets.icons.cpuCore} height={25} width={25} style={{ position: 'absolute', right: 10, top: 10 }} tintColor={Colors.$iconNeutral} />
             </GridCard>
           ),
         },
-        { renderCustomItem: () => <GridCard title="Threads" text={minerData?.cpu.threads || 'N/A'} /> },
-        { renderCustomItem: () => <GridCard title="Arch" text={minerData?.cpu.arch || 'N/A'} /> },
+        { renderCustomItem: () => <GridCard title="Thread" text={minerData?.cpu.threads || 'N/A'} /> },
+        { renderCustomItem: () => <GridCard title="Architettura" text={minerData?.cpu.arch || 'N/A'} /> },
       ]}
       viewWidth={dimensions.width}
       numColumns={2}
@@ -159,9 +159,9 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
   const RenderSharesGrid = React.useCallback(() => (
     <GridView
       items={[
-        { renderCustomItem: () => <GridCard title="Accepted" text={minerData?.connection.accepted || 0} /> },
-        { renderCustomItem: () => <GridCard title="Rejected" text={minerData?.connection.rejected || 0} /> },
-        { renderCustomItem: () => <GridCard title="Total" text={(minerData?.connection.accepted || 0) + (minerData?.connection.rejected || 0)} /> },
+        { renderCustomItem: () => <GridCard title="Accettati" text={minerData?.connection.accepted || 0} /> },
+        { renderCustomItem: () => <GridCard title="Rifiutati" text={minerData?.connection.rejected || 0} /> },
+        { renderCustomItem: () => <GridCard title="Totale" text={(minerData?.connection.accepted || 0) + (minerData?.connection.rejected || 0)} /> },
       ]}
       numColumns={3}
       viewWidth={dimensions.width}
@@ -171,8 +171,8 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
   const RenderSharesMoreGrid = React.useCallback(() => (
     <GridView
       items={[
-        { renderCustomItem: () => <GridCard title="Difficulty" text={minerData?.results.diff_current || 'N/A'} /> },
-        { renderCustomItem: () => <GridCard title="Total Hashes" text={hashrateToString(minerData?.results.hashes_total || 0, true)} /> },
+        { renderCustomItem: () => <GridCard title="Difficoltà" text={minerData?.results.diff_current || 'N/A'} /> },
+        { renderCustomItem: () => <GridCard title="Hash totali" text={hashrateToString(minerData?.results.hashes_total || 0, true)} /> },
       ]}
       numColumns={2}
       viewWidth={dimensions.width}
@@ -184,14 +184,14 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
       items={[
         {
           renderCustomItem: () => (
-            <GridCard title="Free Mem" text={prettyBytes(minerData?.resources.memory.free || 0)}>
+            <GridCard title="Memoria Libera" text={prettyBytes(minerData?.resources.memory.free || 0)}>
               <Card.Image source={Assets.icons.memory} height={25} width={28} style={{ position: 'absolute', right: 10, top: 10 }} tintColor={Colors.$iconNeutral} />
             </GridCard>
           ),
         },
         {
           renderCustomItem: () => (
-            <GridCard title="Res. Mem" text={prettyBytes(minerData?.resources.memory.resident_set_memory || 0)}>
+            <GridCard title="Memoria Residua" text={prettyBytes(minerData?.resources.memory.resident_set_memory || 0)}>
               <Card.Image source={Assets.icons.memory} height={25} width={28} style={{ position: 'absolute', right: 10, top: 10 }} tintColor={Colors.$iconNeutral} />
             </GridCard>
           ),

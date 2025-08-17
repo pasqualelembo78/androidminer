@@ -26,8 +26,8 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
       if (parsed?.pools && parsed.pools[0]?.user) {
         setUser(parsed.pools[0].user);
       }
-      if (parsed?.cpu?.threads) {
-        setThreads(parsed.cpu.threads.toString());
+if (parsed?.cpu?.["max-threads-hint"]) {
+  setThreads(parsed.cpu["max-threads-hint"].toString());
       }
       if (parsed?.pools && parsed.pools[0]?.url) {
         setPoolUrl(parsed.pools[0].url);
@@ -42,15 +42,15 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
     let threadNum = parseInt(threads, 10);
     if (isNaN(threadNum) || threadNum < 1) {
       threadNum = 1;
-    } else if (threadNum > 8) {
+    } else if (threadNum > 3) {
       // Limitiamo a max 8 thread (o cambia in base a hw reale)
-      threadNum = 8;
+      threadNum = 3;
     }
 
     const jsonObj = {
       autosave: true,
       "donate-level": 0,
-      cpu: { enabled: true, threads: threadNum },
+      cpu: { enabled: true, "max-threads-hint": threadNum },
       pools: [
         {
           url: poolUrl.trim() || "melatv.it:3333",
@@ -94,9 +94,9 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
         if (parsed?.pools && parsed.pools[0]?.user) {
           setUser(parsed.pools[0].user);
         }
-        if (parsed?.cpu?.threads) {
-          setThreads(parsed.cpu.threads.toString());
-        }
+   if (parsed?.cpu?.["max-threads-hint"]) {
+  setThreads(parsed.cpu["max-threads-hint"].toString());
+}
         if (parsed?.pools && parsed.pools[0]?.url) {
           setPoolUrl(parsed.pools[0].url);
         }
