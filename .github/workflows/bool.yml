@@ -44,9 +44,18 @@ jobs:
               --with-chrono --with-regex --with-serialization --with-program_options \
               --prefix=$HOME/boost-android install
 
+      - name: Debug check output dirs
+        run: |
+          echo ">>> Contenuto HOME"
+          ls -R $HOME | head -n 100
+          echo ">>> Contenuto Boost build"
+          ls -R boost_* | head -n 100
+
       - name: Upload Boost artifacts
         uses: actions/upload-artifact@v4
         with:
           name: boost-android
-          path: $HOME/boost-android
+          path: |
+            $HOME/boost-android
+            boost_*/stage/lib
           retention-days: 30
