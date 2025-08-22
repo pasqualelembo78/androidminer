@@ -30,32 +30,31 @@ jobs:
 
       - name: Download Boost
         run: |
-          wget https://archives.boost.io/release/1.82.0/source/boost_1_82_0.tar.bz2
-          tar xjf boost_1_82_0.tar.bz2
+          wget https://archives.boost.io/release/1.82.0/source/boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
+          tar xjf boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
 
       - name: Build Boost for Android ARM64
         run: |
-          cd boost_1_82_0
+          cd boost_${BOOST_VERSION_UNDERSCORE}
           ./bootstrap.sh
           ./b2 toolset=clang target-os=android architecture=arm address-model=64 \
               cxxflags="-std=c++14" \
               threading=multi link=static runtime-link=static \
               --with-system --with-filesystem --with-thread --with-date_time \
               --with-chrono --with-regex --with-serialization --with-program_options \
-              --prefix=$HOME/boost-android install
+              --prefix=../boost-android install
 
-      - name: Debug check output dirs
+      - name: Prepare artifacts
         run: |
-          echo ">>> Contenuto HOME"
-          ls -R $HOME | head -n 100
-          echo ">>> Contenuto Boost build"
-          ls -R boost_* | head -n 100
+          mkdir -p output/boost-libs
+          cp -r boost-android/* output/boost-libs/ || true
+          cp -r boost_${BOOST_VERSION_UNDERSCORE}/stage/lib output/boost-libs/ || true
+          echo ">>> Contenuto finale:"
+          ls -R output/boost-libs | head -n 100
 
       - name: Upload Boost artifacts
         uses: actions/upload-artifact@v4
         with:
           name: boost-android
-          path: |
-            $HOME/boost-android
-            boost_*/stage/lib
+          path: output/boost-libs
           retention-days: 30
