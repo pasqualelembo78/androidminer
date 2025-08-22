@@ -28,9 +28,8 @@ jobs:
           mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
           echo "NDK_PATH=$(realpath $HOME/android-ndk)" >> $GITHUB_ENV
 
-      - name: Patch oaes_lib.c for Android
-        run: |
-          sed -i 's|#include <syst/time.h>|#include <sys/time.h>|g' src/crypto/oaes_lib.c
+      - name: Skip oaes_lib patch (not needed for Android)
+        run: echo "Skipping oaes_lib.c patch on Android"
 
       - name: Download and build Boost for Android ARM64
         run: |
