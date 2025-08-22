@@ -30,7 +30,8 @@ jobs:
         run: |
           wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
-          mv android-ndk-${ANDROID_NDK_VERSION} $NDK_PATH
+          mkdir -p $NDK_PATH
+          mv android-ndk-${ANDROID_NDK_VERSION}/* $NDK_PATH/
           echo "NDK path: $NDK_PATH"
 
       - name: Download Boost source
