@@ -12,6 +12,7 @@ jobs:
       BOOST_VERSION_UNDERSCORE: 1_82_0
       ANDROID_API: 24
       BOOST_ROOT: $HOME/boost-android
+      NDK_PATH: $HOME/android-ndk
 
     steps:
       - name: Checkout Mevacoin repository
@@ -29,8 +30,8 @@ jobs:
         run: |
           wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
-          mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
-          echo "NDK path: $HOME/android-ndk"
+          mv android-ndk-${ANDROID_NDK_VERSION} $NDK_PATH
+          echo "NDK path: $NDK_PATH"
 
       - name: Download Boost source
         run: |
@@ -52,10 +53,11 @@ jobs:
 
       - name: Show Boost directories
         run: |
+          BOOST_ROOT_ABS=$(realpath $BOOST_ROOT)
           echo "📂 Boost include:"
-          ls -l $BOOST_ROOT/include | head -n 20
+          ls -l $BOOST_ROOT_ABS/include | head -n 20
           echo "📂 Boost lib:"
-          ls -l $BOOST_ROOT/lib | head -n 20
+          ls -l $BOOST_ROOT_ABS/lib | head -n 20
 
       - name: Configure CMake for Mevacoin
         run: |
@@ -63,7 +65,7 @@ jobs:
           mkdir -p build && cd build
           cmake .. \
             -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=$HOME/android-ndk/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-${ANDROID_API} \
             -DBoost_NO_SYSTEM_PATHS=ON \
