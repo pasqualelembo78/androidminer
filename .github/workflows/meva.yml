@@ -11,7 +11,6 @@ jobs:
       ANDROID_NDK_VERSION: r23c
       BOOST_VERSION_UNDERSCORE: 1_82_0
       ANDROID_API: 24
-      NDK_PATH: $HOME/android-ndk
 
     steps:
       - name: Checkout Mevacoin repository
@@ -29,10 +28,9 @@ jobs:
         run: |
           wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
-          mkdir -p $NDK_PATH
-          mv android-ndk-${ANDROID_NDK_VERSION}/* $NDK_PATH/
-          NDK_PATH_ABS=$(realpath $NDK_PATH)
-          echo "NDK path: $NDK_PATH_ABS"
+          mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
+          NDK_PATH_ABS=$(realpath $HOME/android-ndk)
+          echo "✅ NDK installed at $NDK_PATH_ABS"
           echo "NDK_PATH=$NDK_PATH_ABS" >> $GITHUB_ENV
 
       - name: Download Boost source
@@ -42,7 +40,7 @@ jobs:
 
       - name: Build Boost for Android ARM64
         run: |
-          BOOST_ROOT=${HOME}/boost-android
+          BOOST_ROOT=$HOME/boost-android
           mkdir -p $BOOST_ROOT
           cd boost_${BOOST_VERSION_UNDERSCORE}
           ./bootstrap.sh
@@ -52,20 +50,21 @@ jobs:
               --with-system --with-filesystem --with-thread --with-date_time \
               --with-chrono --with-regex --with-serialization --with-program_options \
               --prefix=$BOOST_ROOT install
-          echo "Boost build complete."
-          echo "BOOST_ROOT=$(realpath $BOOST_ROOT)" >> $GITHUB_ENV
+          BOOST_ROOT_ABS=$(realpath $BOOST_ROOT)
+          echo "✅ Boost built at $BOOST_ROOT_ABS"
+          echo "BOOST_ROOT=$BOOST_ROOT_ABS" >> $GITHUB_ENV
+          echo "BOOST_INCLUDEDIR=$BOOST_ROOT_ABS/include" >> $GITHUB_ENV
+          echo "BOOST_LIBRARYDIR=$BOOST_ROOT_ABS/lib" >> $GITHUB_ENV
 
       - name: Check Boost directories
         run: |
-          if [ ! -d "$BOOST_ROOT/include" ] || [ ! -d "$BOOST_ROOT/lib" ]; then
+          if [ ! -d "$BOOST_INCLUDEDIR" ] || [ ! -d "$BOOST_LIBRARYDIR" ]; then
             echo "❌ Boost directories not found. Build failed!"
             exit 1
           fi
           echo "✅ Boost include and lib directories found."
-          echo "📂 Boost include:"
-          ls -l $BOOST_ROOT/include | head -n 20
-          echo "📂 Boost lib:"
-          ls -l $BOOST_ROOT/lib | head -n 20
+          ls -l $BOOST_INCLUDEDIR | head -n 10
+          ls -l $BOOST_LIBRARYDIR | head -n 10
 
       - name: Configure CMake for Mevacoin
         run: |
@@ -76,8 +75,8 @@ jobs:
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-${ANDROID_API} \
             -DBOOST_ROOT=$BOOST_ROOT \
-            -DBOOST_INCLUDEDIR=$BOOST_ROOT/include \
-            -DBOOST_LIBRARYDIR=$BOOST_ROOT/lib \
+            -DBOOST_INCLUDEDIR=$BOOST_INCLUDEDIR \
+            -DBOOST_LIBRARYDIR=$BOOST_LIBRARYDIR \
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build Mevacoin
