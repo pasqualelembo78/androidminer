@@ -11,18 +11,28 @@ jobs:
       ANDROID_NDK_VERSION: r23c
       ANDROID_API: 24
       BOOST_ROOT: $HOME/boost-android
+      BOOST_TAR_URL: https://your-storage.example.com/boost-android-1_82_0.tar.gz
+      BOOST_TAR_SHA256: 94ad0db030efd84723e3aef003e89539b53488ee585f8b965b267d037e8f71e3
 
     steps:
       - name: Checkout Mevacoin repository
         uses: actions/checkout@v4
         with:
-          repository: pasqualelembo78/mevacoin  # senza .git
+          repository: pasqualelembo78/mevacoin
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y wget tar bzip2 build-essential python3 cmake unzip git
+
+      - name: Download and extract precompiled Boost
+        run: |
+          mkdir -p $HOME/boost-android
+          wget -O boost.tar.gz $BOOST_TAR_URL
+          echo "$BOOST_TAR_SHA256 boost.tar.gz" | sha256sum -c -
+          tar xzf boost.tar.gz -C $HOME/boost-android --strip-components=1
+          ls -R $HOME/boost-android | head -n 20
 
       - name: Download Android NDK
         run: |
@@ -46,6 +56,8 @@ jobs:
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-${ANDROID_API} \
             -DBOOST_ROOT=$BOOST_ROOT \
+            -DBOOST_INCLUDEDIR=$BOOST_ROOT/include \
+            -DBOOST_LIBRARYDIR=$BOOST_ROOT/lib \
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build Mevacoin
