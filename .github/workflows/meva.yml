@@ -11,7 +11,7 @@ jobs:
       ANDROID_NDK_VERSION: r23c
       ANDROID_API: 24
       BOOST_ROOT: $HOME/boost-android
-      BOOST_ZIP_URL: https://github.com/pasqualelembo78/androidminer/archive/refs/tags/Boos.zip
+      BOOST_ZIP_URL: https://github.com/pasqualelembo78/androidminer/releases/download/Boos/boost-android.zip
 
     steps:
       - name: Checkout Mevacoin repository
@@ -27,13 +27,10 @@ jobs:
 
       - name: Download and extract precompiled Boost
         run: |
-          mkdir -p $HOME/boost-android
+          mkdir -p $BOOST_ROOT
           wget -O boost.zip $BOOST_ZIP_URL
-          unzip -q boost.zip -d $HOME
-          # La cartella creata ha nome androidminer-Boos
-          mv $HOME/androidminer-Boos/include $HOME/boost-android/
-          mv $HOME/androidminer-Boos/lib $HOME/boost-android/
-          ls -R $HOME/boost-android | head -n 20
+          unzip -q boost.zip -d $BOOST_ROOT
+          ls -R $BOOST_ROOT | head -n 30
 
       - name: Download Android NDK
         run: |
