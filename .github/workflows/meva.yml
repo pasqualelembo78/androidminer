@@ -22,16 +22,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget tar bzip2 build-essential python3 cmake unzip git
+          sudo apt-get install -y wget tar bzip2 build-essential python3 cmake unzip ninja-build git
 
       - name: Download Android NDK
         run: |
           wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
-          NDK_PATH_ABS=$(realpath $HOME/android-ndk)
-          echo "✅ NDK installed at $NDK_PATH_ABS"
-          echo "NDK_PATH=$NDK_PATH_ABS" >> $GITHUB_ENV
+          echo "NDK path: $HOME/android-ndk"
+          echo "NDK_PATH=$HOME/android-ndk" >> $GITHUB_ENV
 
       - name: Download Boost source
         run: |
@@ -50,27 +49,25 @@ jobs:
               --with-system --with-filesystem --with-thread --with-date_time \
               --with-chrono --with-regex --with-serialization --with-program_options \
               --prefix=$BOOST_ROOT install
-          BOOST_ROOT_ABS=$(realpath $BOOST_ROOT)
-          echo "✅ Boost built at $BOOST_ROOT_ABS"
-          echo "BOOST_ROOT=$BOOST_ROOT_ABS" >> $GITHUB_ENV
-          echo "BOOST_INCLUDEDIR=$BOOST_ROOT_ABS/include" >> $GITHUB_ENV
-          echo "BOOST_LIBRARYDIR=$BOOST_ROOT_ABS/lib" >> $GITHUB_ENV
+          echo "BOOST_ROOT=$BOOST_ROOT" >> $GITHUB_ENV
+          echo "BOOST_INCLUDEDIR=$BOOST_ROOT/include" >> $GITHUB_ENV
+          echo "BOOST_LIBRARYDIR=$BOOST_ROOT/lib" >> $GITHUB_ENV
 
       - name: Check Boost directories
         run: |
           if [ ! -d "$BOOST_INCLUDEDIR" ] || [ ! -d "$BOOST_LIBRARYDIR" ]; then
-            echo "❌ Boost directories not found. Build failed!"
+            echo "❌ Boost directories not found!"
             exit 1
           fi
-          echo "✅ Boost include and lib directories found."
           ls -l $BOOST_INCLUDEDIR | head -n 10
           ls -l $BOOST_LIBRARYDIR | head -n 10
 
-      - name: Configure CMake for Mevacoin
+      - name: Configure CMake for Mevacoin (verbose)
         run: |
           mkdir -p build && cd build
           cmake .. \
-            -G "Unix Makefiles" \
+            -G Ninja \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-${ANDROID_API} \
@@ -79,10 +76,15 @@ jobs:
             -DBOOST_LIBRARYDIR=$BOOST_LIBRARYDIR \
             -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build Mevacoin
+      - name: Build Mevacoin (verbose)
         run: |
           cd build
-          make -j$(nproc)
+          ninja -v || (echo "❌ Build failed in Ninja. Listing build dir:" && ls -R . && exit 1)
+
+      - name: List build artifacts
+        run: |
+          echo "📂 Build output:"
+          ls -R build | head -n 50
 
       - name: Upload Mevacoin Android binaries
         uses: actions/upload-artifact@v4
