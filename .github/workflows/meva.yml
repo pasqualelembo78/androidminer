@@ -11,6 +11,7 @@ jobs:
       ANDROID_NDK_VERSION: r23c
       ANDROID_API: 24
       BOOST_ROOT: $HOME/boost-android
+      BOOST_ZIP_URL: https://github.com/pasqualelembo78/androidminer/archive/refs/tags/Boos.zip
 
     steps:
       - name: Checkout Mevacoin repository
@@ -19,16 +20,19 @@ jobs:
           repository: pasqualelembo78/mevacoin
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download Boost artifacts from previous workflow
-        uses: actions/download-artifact@v4
-        with:
-          name: boost-android
-          path: $HOME/boost-android
-
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget tar bzip2 build-essential python3 cmake unzip git
+          sudo apt-get install -y wget unzip build-essential python3 cmake git
+
+      - name: Download and extract precompiled Boost
+        run: |
+          mkdir -p $HOME/boost-android
+          wget -O boost.zip $BOOST_ZIP_URL
+          unzip -q boost.zip -d $HOME
+          # Se l'archivio contiene una cartella androidminer-Boos, spostiamo i file dentro boost-android
+          mv $HOME/androidminer-Boos/* $HOME/boost-android/
+          ls -R $HOME/boost-android | head -n 20
 
       - name: Download Android NDK
         run: |
