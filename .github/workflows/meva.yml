@@ -15,9 +15,6 @@ jobs:
     steps:
       - name: Checkout Mevacoin repository
         uses: actions/checkout@v4
-        with:
-          repository: pasqualelembo78/mevacoin
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: |
@@ -29,42 +26,28 @@ jobs:
           wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
-          NDK_PATH_ABS=$(realpath $HOME/android-ndk)
-          echo "✅ NDK installed at $NDK_PATH_ABS"
-          echo "NDK_PATH=$NDK_PATH_ABS" >> $GITHUB_ENV
+          echo "NDK_PATH=$(realpath $HOME/android-ndk)" >> $GITHUB_ENV
 
-      - name: Download Boost source
+      - name: Patch oaes_lib.c for Android
+        run: |
+          sed -i 's|#include <syst/time.h>|#include <sys/time.h>|g' src/crypto/oaes_lib.c
+
+      - name: Download and build Boost for Android ARM64
         run: |
           wget https://archives.boost.io/release/1.82.0/source/boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
           tar xjf boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
-
-      - name: Build Boost for Android ARM64
-        run: |
           BOOST_ROOT=$HOME/boost-android
           mkdir -p $BOOST_ROOT
           cd boost_${BOOST_VERSION_UNDERSCORE}
           ./bootstrap.sh
-          ./b2 toolset=clang target-os=android architecture=arm address-model=64 \
-              cxxflags="-std=c++14" \
+          ./b2 toolset=clang target-os=android architecture=arm address-model=64 cxxflags="-std=c++14 -fPIC" \
               threading=multi link=static runtime-link=static \
               --with-system --with-filesystem --with-thread --with-date_time \
               --with-chrono --with-regex --with-serialization --with-program_options \
               --prefix=$BOOST_ROOT install
-          BOOST_ROOT_ABS=$(realpath $BOOST_ROOT)
-          echo "✅ Boost built at $BOOST_ROOT_ABS"
-          echo "BOOST_ROOT=$BOOST_ROOT_ABS" >> $GITHUB_ENV
-          echo "BOOST_INCLUDEDIR=$BOOST_ROOT_ABS/include" >> $GITHUB_ENV
-          echo "BOOST_LIBRARYDIR=$BOOST_ROOT_ABS/lib" >> $GITHUB_ENV
-
-      - name: Check Boost directories
-        run: |
-          if [ ! -d "$BOOST_INCLUDEDIR" ] || [ ! -d "$BOOST_LIBRARYDIR" ]; then
-            echo "❌ Boost directories not found. Build failed!"
-            exit 1
-          fi
-          echo "✅ Boost include and lib directories found."
-          ls -l $BOOST_INCLUDEDIR | head -n 10
-          ls -l $BOOST_LIBRARYDIR | head -n 10
+          echo "BOOST_ROOT=$(realpath $BOOST_ROOT)" >> $GITHUB_ENV
+          echo "BOOST_INCLUDEDIR=$(realpath $BOOST_ROOT)/include" >> $GITHUB_ENV
+          echo "BOOST_LIBRARYDIR=$(realpath $BOOST_ROOT)/lib" >> $GITHUB_ENV
 
       - name: Configure CMake for Mevacoin
         run: |
@@ -77,7 +60,9 @@ jobs:
             -DBOOST_ROOT=$BOOST_ROOT \
             -DBOOST_INCLUDEDIR=$BOOST_INCLUDEDIR \
             -DBOOST_LIBRARYDIR=$BOOST_LIBRARYDIR \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DCMAKE_EXE_LINKER_FLAGS="-pthread -lm"
 
       - name: Build Mevacoin
         run: |
