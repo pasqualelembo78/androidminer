@@ -11,7 +11,6 @@ jobs:
       ANDROID_NDK_VERSION: r23c
       BOOST_VERSION_UNDERSCORE: 1_82_0
       ANDROID_API: 24
-      BOOST_ROOT: $HOME/boost-android
       NDK_PATH: $HOME/android-ndk
 
     steps:
@@ -41,6 +40,7 @@ jobs:
 
       - name: Build Boost for Android ARM64
         run: |
+          BOOST_ROOT=${HOME}/boost-android
           mkdir -p $BOOST_ROOT
           cd boost_${BOOST_VERSION_UNDERSCORE}
           ./bootstrap.sh
@@ -52,16 +52,22 @@ jobs:
               --prefix=$BOOST_ROOT install
           echo "Boost build complete."
 
-      - name: Show Boost directories
+      - name: Check Boost directories
         run: |
-          BOOST_ROOT_ABS=$(realpath $BOOST_ROOT)
+          BOOST_ROOT=${HOME}/boost-android
+          if [ ! -d "$BOOST_ROOT/include" ] || [ ! -d "$BOOST_ROOT/lib" ]; then
+            echo "❌ Boost directories not found. Build failed!"
+            exit 1
+          fi
+          echo "✅ Boost include and lib directories found."
           echo "📂 Boost include:"
-          ls -l $BOOST_ROOT_ABS/include | head -n 20
+          ls -l $BOOST_ROOT/include | head -n 20
           echo "📂 Boost lib:"
-          ls -l $BOOST_ROOT_ABS/lib | head -n 20
+          ls -l $BOOST_ROOT/lib | head -n 20
 
       - name: Configure CMake for Mevacoin
         run: |
+          BOOST_ROOT=${HOME}/boost-android
           BOOST_ROOT_ABS=$(realpath $BOOST_ROOT)
           mkdir -p build && cd build
           cmake .. \
