@@ -1,4 +1,4 @@
-name: Build 
+name: Build Boost Android ARM64
 
 on:
   workflow_dispatch:   # Avvio manuale dal tab Actions
@@ -37,8 +37,9 @@ jobs:
         run: |
           cd boost_1_82_0
           ./bootstrap.sh
-          ./b2 toolset=clang-arm64 target-os=android threading=multi link=static runtime-link=static \
+          ./b2 toolset=clang target-os=android architecture=arm address-model=64 \
               cxxflags="-std=c++14" \
+              threading=multi link=static runtime-link=static \
               --with-system --with-filesystem --with-thread --with-date_time \
               --with-chrono --with-regex --with-serialization --with-program_options \
               --prefix=$HOME/boost-android install
