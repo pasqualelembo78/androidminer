@@ -81,12 +81,13 @@ jobs:
             -DBOOST_LIBRARYDIR=$BOOST_LIBRARYDIR \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DCMAKE_EXE_LINKER_FLAGS="-pthread -lm"
+            -DCMAKE_EXE_LINKER_FLAGS="-pthread -lm" \
+            -DCMAKE_CXX_FLAGS="-I$NDK_PATH/sources/android/cpufeatures"
 
       - name: Build Mevacoin
         run: |
           cd $GITHUB_WORKSPACE/build
-          make -j$(nproc) verbose=1
+          make -j$(nproc) VERBOSE=1
 
       - name: Upload Mevacoin Android binaries
         uses: actions/upload-artifact@v4
