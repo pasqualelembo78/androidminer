@@ -71,7 +71,6 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/fixes/bits
           # Fake header per bypass missing <bits/reg.h>
           cat > $GITHUB_WORKSPACE/fixes/bits/reg.h <<'EOF'
-// Stub header for Android build
 #pragma once
 // Empty placeholder to bypass missing <bits/reg.h>
 EOF
