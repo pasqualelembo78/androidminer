@@ -66,6 +66,14 @@ jobs:
           ls -l $BOOST_INCLUDEDIR | head -n 10
           ls -l $BOOST_LIBRARYDIR | head -n 10
 
+      - name: Apply quick fixes (headers & includes)
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/fixes
+          # Fake header to bypass missing <bits/reg.h>
+          echo "// dummy reg.h to bypass include" > $GITHUB_WORKSPACE/fixes/reg.h
+          # Export to cmake flags so it's picked up first
+          echo "EXTRA_INCLUDE=$GITHUB_WORKSPACE/fixes" >> $GITHUB_ENV
+
       - name: Configure CMake for Mevacoin
         run: |
           cd $GITHUB_WORKSPACE
@@ -82,12 +90,12 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DCMAKE_EXE_LINKER_FLAGS="-pthread -lm" \
-            -DCMAKE_CXX_FLAGS="-I$NDK_PATH/sources/android/cpufeatures"
+            -DCMAKE_CXX_FLAGS="-I$NDK_PATH/sources/android/cpufeatures -I$EXTRA_INCLUDE"
 
       - name: Build Mevacoin
         run: |
           cd $GITHUB_WORKSPACE/build
-          make VERBOSE=1
+          make -j$(nproc) VERBOSE=1
 
       - name: Upload Mevacoin Android binaries
         uses: actions/upload-artifact@v4
