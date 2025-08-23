@@ -95,7 +95,14 @@ jobs:
       - name: Build Mevacoin
         run: |
           cd $GITHUB_WORKSPACE/build
-          make -j$(nproc) VERBOSE=1
+          # Mostra comandi, continua a compilare e accumula errori
+          make -j$(nproc) VERBOSE=1 || true
+          echo "================= 🔴 MAKE FAILED - SHOWING LAST 200 LINES ================="
+          tail -n 200 CMakeFiles/CMakeError.log || true
+          tail -n 200 CMakeFiles/CMakeOutput.log || true
+          # stampa gli ultimi errori del build
+          tail -n 200 build.ninja 2>/dev/null || true
+          exit 1
 
       - name: Upload Mevacoin Android binaries
         uses: actions/upload-artifact@v4
