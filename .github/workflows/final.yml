@@ -1,4 +1,4 @@
-name: Build Mevacoin Android ARM64
+name: final
 
 on:
   workflow_dispatch:
