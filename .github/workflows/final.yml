@@ -1,0 +1,103 @@
+name: Build binari completo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_NDK_VERSION: r23c
+      BOOST_VERSION_UNDERSCORE: 1_82_0
+      ANDROID_API: 24
+
+    steps:
+      - name: Checkout Mevacoin repository
+        uses: actions/checkout@v4
+        with:
+          repository: pasqualelembo78/mevacoin
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget tar bzip2 build-essential python3 cmake unzip git
+
+      - name: Download Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip
+          unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
+          mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
+          NDK_PATH_ABS=$(realpath $HOME/android-ndk)
+          echo "NDK_PATH=$NDK_PATH_ABS" >> $GITHUB_ENV
+
+      - name: Download Boost source
+        run: |
+          wget https://archives.boost.io/release/1.82.0/source/boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
+          tar xjf boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
+
+      - name: Build Boost for Android ARM64
+        run: |
+          BOOST_ROOT=$HOME/boost-android
+          mkdir -p $BOOST_ROOT
+          cd boost_${BOOST_VERSION_UNDERSCORE}
+          ./bootstrap.sh
+          ./b2 toolset=clang target-os=android architecture=arm address-model=64 \
+              cxxflags="-std=c++14" \
+              threading=multi link=static runtime-link=static \
+              --with-system --with-filesystem --with-thread --with-date_time \
+              --with-chrono --with-regex --with-serialization --with-program_options \
+              --prefix=$BOOST_ROOT install
+          echo "BOOST_ROOT=$BOOST_ROOT" >> $GITHUB_ENV
+          echo "BOOST_INCLUDEDIR=$BOOST_ROOT/include" >> $GITHUB_ENV
+          echo "BOOST_LIBRARYDIR=$BOOST_ROOT/lib" >> $GITHUB_ENV
+
+      - name: Apply quick fixes (headers & includes)
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/fixes/bits
+          printf "#pragma once\n// Empty placeholder to bypass missing <bits/reg.h>\n" > $GITHUB_WORKSPACE/fixes/bits/reg.h
+          echo "EXTRA_INCLUDE=$GITHUB_WORKSPACE/fixes" >> $GITHUB_ENV
+
+      - name: Configure CMake for Mevacoin
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/build
+          cd $GITHUB_WORKSPACE/build
+          cmake $GITHUB_WORKSPACE \
+            -G "Unix Makefiles" \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-${ANDROID_API} \
+            -DBOOST_ROOT=$BOOST_ROOT \
+            -DBOOST_INCLUDEDIR=$BOOST_INCLUDEDIR \
+            -DBOOST_LIBRARYDIR=$BOOST_LIBRARYDIR \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DCMAKE_EXE_LINKER_FLAGS="-pthread -lm" \
+            -DCMAKE_CXX_FLAGS="-I$NDK_PATH/sources/android/cpufeatures -I$EXTRA_INCLUDE -Wno-error"
+
+      - name: Build Mevacoin final binaries
+        run: |
+          cd $GITHUB_WORKSPACE/build
+          make -j$(nproc) \
+            mevacoind \
+            xkrwallet \
+            xkrwallet-beta \
+            mevacoin-service \
+            miner \
+            crypto_test \
+            wallet-api
+
+      - name: Upload Mevacoin Android binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: mevacoin-android
+          path: |
+            build/src/mevacoind
+            build/src/xkrwallet
+            build/src/xkrwallet-beta
+            build/src/mevacoin-service
+            build/src/miner
+            build/src/crypto_test
+            build/src/wallet-api
+          retention-days: 30
