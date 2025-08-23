@@ -98,10 +98,12 @@ jobs:
           # Mostra comandi, continua a compilare e accumula errori
           make -j$(nproc) VERBOSE=1 || true
           echo "================= 🔴 MAKE FAILED - SHOWING LAST 200 LINES ================="
-          tail -n 200 CMakeFiles/CMakeError.log || true
-          tail -n 200 CMakeFiles/CMakeOutput.log || true
-          # stampa gli ultimi errori del build
-          tail -n 200 build.ninja 2>/dev/null || true
+          tail -n 200 $GITHUB_WORKSPACE/build/CMakeFiles/CMakeError.log 2>/dev/null || true
+          tail -n 200 $GITHUB_WORKSPACE/build/CMakeFiles/CMakeOutput.log 2>/dev/null || true
+          echo "================= 🔎 GREP ERROR MESSAGES ================="
+          grep -i --color=always -R "error" $GITHUB_WORKSPACE/build || true
+          echo "================= 🔎 GREP WARNING MESSAGES ================="
+          grep -i --color=always -R "warning" $GITHUB_WORKSPACE/build | tail -n 50 || true
           exit 1
 
       - name: Upload Mevacoin Android binaries
