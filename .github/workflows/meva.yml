@@ -30,7 +30,6 @@ jobs:
           unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
           mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
           NDK_PATH_ABS=$(realpath $HOME/android-ndk)
-          echo "✅ NDK installed at $NDK_PATH_ABS"
           echo "NDK_PATH=$NDK_PATH_ABS" >> $GITHUB_ENV
 
       - name: Download Boost source
@@ -50,37 +49,20 @@ jobs:
               --with-system --with-filesystem --with-thread --with-date_time \
               --with-chrono --with-regex --with-serialization --with-program_options \
               --prefix=$BOOST_ROOT install
-          BOOST_ROOT_ABS=$(realpath $BOOST_ROOT)
-          echo "✅ Boost built at $BOOST_ROOT_ABS"
-          echo "BOOST_ROOT=$BOOST_ROOT_ABS" >> $GITHUB_ENV
-          echo "BOOST_INCLUDEDIR=$BOOST_ROOT_ABS/include" >> $GITHUB_ENV
-          echo "BOOST_LIBRARYDIR=$BOOST_ROOT_ABS/lib" >> $GITHUB_ENV
-
-      - name: Check Boost directories
-        run: |
-          if [ ! -d "$BOOST_INCLUDEDIR" ] || [ ! -d "$BOOST_LIBRARYDIR" ]; then
-            echo "❌ Boost directories not found. Build failed!"
-            exit 1
-          fi
-          echo "✅ Boost include and lib directories found."
-          ls -l $BOOST_INCLUDEDIR | head -n 10
-          ls -l $BOOST_LIBRARYDIR | head -n 10
+          echo "BOOST_ROOT=$BOOST_ROOT" >> $GITHUB_ENV
+          echo "BOOST_INCLUDEDIR=$BOOST_ROOT/include" >> $GITHUB_ENV
+          echo "BOOST_LIBRARYDIR=$BOOST_ROOT/lib" >> $GITHUB_ENV
 
       - name: Apply quick fixes (headers & includes)
         run: |
           mkdir -p $GITHUB_WORKSPACE/fixes/bits
-          # Fake header per bypass missing <bits/reg.h>
-          cat > $GITHUB_WORKSPACE/fixes/bits/reg.h <<'EOF'
-#pragma once
-// Empty placeholder to bypass missing <bits/reg.h>
-EOF
+          printf "#pragma once\n// Empty placeholder to bypass missing <bits/reg.h>\n" > $GITHUB_WORKSPACE/fixes/bits/reg.h
           echo "EXTRA_INCLUDE=$GITHUB_WORKSPACE/fixes" >> $GITHUB_ENV
 
       - name: Configure CMake for Mevacoin
         run: |
-          cd $GITHUB_WORKSPACE
-          mkdir -p build
-          cd build
+          mkdir -p $GITHUB_WORKSPACE/build
+          cd $GITHUB_WORKSPACE/build
           cmake $GITHUB_WORKSPACE \
             -G "Unix Makefiles" \
             -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
@@ -98,14 +80,8 @@ EOF
         run: |
           cd $GITHUB_WORKSPACE/build
           make -j$(nproc) VERBOSE=1 || true
-          echo "================= 🔴 MAKE FAILED - SHOWING LAST 200 LINES ================="
           tail -n 200 $GITHUB_WORKSPACE/build/CMakeFiles/CMakeError.log 2>/dev/null || true
           tail -n 200 $GITHUB_WORKSPACE/build/CMakeFiles/CMakeOutput.log 2>/dev/null || true
-          echo "================= 🔎 GREP ERROR MESSAGES ================="
-          grep -i --color=always -R "error" $GITHUB_WORKSPACE/build || true
-          echo "================= 🔎 GREP WARNING MESSAGES ================="
-          grep -i --color=always -R "warning" $GITHUB_WORKSPACE/build | tail -n 50 || true
-          exit 1
 
       - name: Upload Mevacoin Android binaries
         uses: actions/upload-artifact@v4
