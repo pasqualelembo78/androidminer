@@ -69,9 +69,9 @@ jobs:
       - name: Apply quick fixes (headers & includes)
         run: |
           mkdir -p $GITHUB_WORKSPACE/fixes
-          # Fake header to bypass missing <bits/reg.h>
+          # Fake header per bypass missing <bits/reg.h>
           echo "// dummy reg.h to bypass include" > $GITHUB_WORKSPACE/fixes/reg.h
-          # Export to cmake flags so it's picked up first
+          # Export include path to CMake
           echo "EXTRA_INCLUDE=$GITHUB_WORKSPACE/fixes" >> $GITHUB_ENV
 
       - name: Configure CMake for Mevacoin
@@ -95,7 +95,6 @@ jobs:
       - name: Build Mevacoin
         run: |
           cd $GITHUB_WORKSPACE/build
-          # Mostra comandi, continua a compilare e accumula errori
           make -j$(nproc) VERBOSE=1 || true
           echo "================= 🔴 MAKE FAILED - SHOWING LAST 200 LINES ================="
           tail -n 200 $GITHUB_WORKSPACE/build/CMakeFiles/CMakeError.log 2>/dev/null || true
