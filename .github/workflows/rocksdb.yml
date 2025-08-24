@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install -y build-essential cmake python3 git
 
       - name: Create build directory
-        run: mkdir -p build && cd build
+        run: mkdir -p build
 
       - name: Configure with CMake
         run: |
@@ -47,22 +47,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Android NDK
-        uses: android-actions/setup-ndk@v2
-        with:
-          ndk-version: r23c
-
       - name: Install dependencies
-        run: sudo apt-get install -y cmake ninja-build python3 git
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build python3 unzip wget
 
-      - name: Create build directory
-        run: mkdir -p build-android && cd build-android
+      - name: Download Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r23c-linux.zip
+          unzip android-ndk-r23c-linux.zip
+          mv android-ndk-r23c $HOME/android-ndk
 
       - name: Configure for Android
         run: |
+          mkdir -p build-android
           cd build-android
           cmake -G Ninja ../ \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$HOME/android-ndk/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-24 \
             -DCMAKE_BUILD_TYPE=Release
