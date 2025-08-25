@@ -24,6 +24,31 @@ public class MainActivity extends ReactActivity {
   protected void onCreate(Bundle savedInstanceState) {
     SplashScreen.show(this);  // here
     super.onCreate(null);
+
+        // ====================================
+    // COPIA BINARI MEVACOIN
+    // ====================================
+    try {
+        File filesDir = getFilesDir();
+        File binaryFile = new File(filesDir, "xkrwallet");
+
+        if (!binaryFile.exists()) {
+            InputStream is = getAssets().open("bin/xkrwallet");
+            FileOutputStream os = new FileOutputStream(binaryFile);
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = is.read(buffer)) != -1) {
+                os.write(buffer, 0, read);
+            }
+            os.close();
+            is.close();
+
+            binaryFile.setExecutable(true);
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    // ====================================
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
     IntentFilter batterFilters = new IntentFilter();
