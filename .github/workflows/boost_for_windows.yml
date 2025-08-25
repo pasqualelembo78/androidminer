@@ -13,7 +13,7 @@ jobs:
     steps:
       # 1️⃣ Clona il repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 2️⃣ Scarica Boost (versione 1.82.0, puoi cambiare)
       - name: Download Boost
@@ -36,7 +36,7 @@ jobs:
 
       # 6️⃣ Carica gli artifact compilati
       - name: Upload Boost libraries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: boost-windows
           path: boost\boost_1_82_0\stage\lib\*
