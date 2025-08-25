@@ -1,0 +1,42 @@
+name: Build Boost for Windows
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-boost:
+    runs-on: windows-latest
+
+    steps:
+      # 1️⃣ Clona il repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Scarica Boost (versione 1.82.0, puoi cambiare)
+      - name: Download Boost
+        run: |
+          Invoke-WebRequest -Uri https://archives.boost.io/release/1.82.0/source/boost_1_82_0.zip -OutFile boost.zip
+          Expand-Archive boost.zip -DestinationPath boost
+
+      # 3️⃣ Entra nella cartella Boost
+      - name: Enter Boost directory
+        run: cd boost\boost_1_82_0
+
+      # 4️⃣ Bootstrap Boost (prepara b2)
+      - name: Bootstrap Boost
+        run: boost\bootstrap.bat
+
+      # 5️⃣ Compila Boost (librerie statiche e dinamiche x64)
+      - name: Build Boost
+        run: |
+          .\b2.exe --build-type=complete address-model=64 architecture=x86 toolset=msvc runtime-link=static,shared link=static,shared stage
+
+      # 6️⃣ Carica gli artifact compilati
+      - name: Upload Boost libraries
+        uses: actions/upload-artifact@v3
+        with:
+          name: boost-windows
+          path: boost\boost_1_82_0\stage\lib\*
