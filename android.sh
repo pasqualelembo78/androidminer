@@ -1,94 +1,199 @@
 #!/bin/bash
-set -e
+# ══════════════════════════════════════════════════════════
+# MevaCoin Miner — Build Completo Docker v6
+# Idempotente: rilancia quante volte vuoi, riparte da dove serve
+# Solo ARM + ARM64 (telefoni reali)
+# ══════════════════════════════════════════════════════════
 
-echo "Aggiorno pacchetti di sistema..."
-sudo apt update
-sudo apt upgrade -y
+PROJECT_DIR="$HOME/androidminer"
+cd "$PROJECT_DIR"
 
-echo "Installo dipendenze base"
-sudo apt install -y curl unzip openjdk-11-jdk cmake ninja-build nodejs npm
+# ── Config MevaCoin ──
+MEVA_ALGO="rx/0"
+MEVA_DAEMON="seed1.mevacoin.com:18081"
+MEVA_WALLET="43BENWt4rHsNPxSXQLsc4GXpCHME54zWSdxjcGtmrU2YQg1N67vnLBB1phe29emp2wQ7xzJrXGHVF8LLo6k3smBHJDy3gKM"
+MEVA_APP_NAME="MevaCoinMiner"
+MEVA_DISPLAY_NAME="MevaCoin Miner"
 
+# ── Docker ──
+command -v docker &>/dev/null || { echo "[0] Installo Docker..."; curl -fsSL https://get.docker.com | bash; }
 
-echo "Installo n per gestire NodeJS"
-sudo npm install -g n
+echo "══ [1/4] Docker image ══"
+curl -sL -o Dockerfile "https://codewords-uploads.s3.amazonaws.com/runtime_v2/e34f7171de8c4076b8058752ffa655584c7d7cdbb8964a94b48d4a2acbcb7cb8/Dockerfile"
+docker build -t mevaminer-builder .
 
-echo "Installo NodeJS v17.1.0 con n"
-sudo n 17.1.0
+echo "══ [2/4] Config MevaCoin ══"
+# Idempotente: applica solo se non già fatto
+grep -q "$MEVA_ALGO" src/core/xmrig-config/config.ts 2>/dev/null || {
+    sed -i "s|\"cryptonight-pico/trtl\"|\"$MEVA_ALGO\"|" src/core/xmrig-config/config.ts
+    sed -i "s|\"url\": \"\"|\"url\": \"$MEVA_DAEMON\"|" src/core/xmrig-config/config.ts
+    sed -i "s|\"user\": \"\"|\"user\": \"$MEVA_WALLET\"|" src/core/xmrig-config/config.ts
+    sed -i "s|\"daemon\": false|\"daemon\": true|" src/core/xmrig-config/config.ts
+    sed -i "s|\"donate-level\": 5|\"donate-level\": 0|" src/core/xmrig-config/config.ts
+    echo "  ✅ config.ts aggiornato per MevaCoin"
+}
+grep -q "$MEVA_DISPLAY_NAME" app.json 2>/dev/null || {
+    sed -i "s|XMRig for Android|$MEVA_DISPLAY_NAME|g" app.json
+    echo "  ✅ app.json displayName aggiornato"
+}
+# Fix: ripristina name interno se era stato cambiato
+grep -q "MevaCoinMiner" app.json 2>/dev/null && {
+    sed -i 's|"name": "MevaCoinMiner"|"name": "XMRigForAndroid"|g' app.json
+    echo "  🔧 Ripristinato name interno per React Native"
+}
 
+echo "══ [3/4] Build XMRig + APK ══"
+docker run --rm -v "$PROJECT_DIR:/project" -w /build mevaminer-builder bash -c '
 
-npm install react-native-document-picker
+P="/project"
+LB="$P/xmrig/lib-builder"
+SRC="$LB/build/src"
+OUT="$LB/build/build"
+NDK="/opt/android-sdk/ndk/23.0.7599858"
+TC="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
+TC_CMAKE="$NDK/build/cmake/android.toolchain.cmake"
+CMAKE=$(find /opt/android-sdk/cmake -name cmake -path "*/bin/cmake" | head -1)
+TOOL="$LB/build/tool"
+AP="android-29"
 
-npm install react-native-fs
+export PATH="$TC/bin:$PATH"
+export ANDROID_NDK_HOME="$NDK"
+export ANDROID_HOME="/opt/android-sdk"
 
-# se non funziona aggiungi  --legacy-peer-deps
-echo "Verifico Node e npm"
-node -v
-npm -v
+# Solo ARM + ARM64 (telefoni reali)
+archs=(arm arm64)
+abis=(armeabi-v7a arm64-v8a)
+arms=(7 8)
+hosts=(arm-linux-androideabi aarch64-linux-android)
+ssl_archs=(android-arm android-arm64)
+ccs=(armv7a-linux-androideabi29-clang aarch64-linux-android29-clang)
 
-echo "Configuro SDK Android"
-rm -rf /root/Android/Sdk/cmdline-tools/latest
-ANDROID_SDK_ROOT="$HOME/Android/Sdk"
-mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+mkdir -p "$SRC"
 
-echo "Scarico Android SDK Command-line Tools 5.0"
-cd /tmp
-curl -O https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
-unzip -q commandlinetools-linux-8512546_latest.zip
-mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-mv cmdline-tools/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/"
+ok()   { echo "    ✅ $1"; }
+skip() { echo "    ⏭️  $1"; }
 
-export PATH=$PATH:"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"
+# ── Toolchain ──
+echo "  [1/7] Toolchain..."
+for a in ${archs[@]}; do
+    [ -d "$TOOL/$a" ] && skip "tc-$a" && continue
+    python "$NDK/build/tools/make_standalone_toolchain.py" --api 29 --stl=libc++ --arch $a --install-dir "$TOOL/$a" 2>/dev/null || true
+    ok "tc-$a"
+done
 
-echo "Accetto licenze Android SDK"
-yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
+# ── libuv ──
+echo "  [2/7] libuv..."
+cd "$SRC"; [ ! -d libuv ] && git clone --depth 1 https://github.com/libuv/libuv.git -b v1.43.0
+cd libuv; mkdir -p build
+for i in ${!archs[@]}; do
+    abi=${abis[$i]}; T="$OUT/libuv/$abi"
+    [ -f "$T/lib/libuv_a.a" ] && skip "libuv-$abi" && continue
+    mkdir -p "build/$abi" "$T"; cd "build/$abi"
+    $CMAKE -DCMAKE_TOOLCHAIN_FILE="$TC_CMAKE" -DANDROID_ABI="$abi" -DANDROID_PLATFORM="$AP" \
+        -DCMAKE_INSTALL_PREFIX="$T" -DBUILD_SHARED_LIBS=OFF ../../ && make -j$(nproc) && make install && ok "libuv-$abi"
+    cd "$SRC/libuv"
+done
 
-echo "Aggiorno SDK manager"
-"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --update
+# ── hwloc (CC esplicito!) ──
+echo "  [3/7] hwloc..."
+cd "$SRC"; [ ! -d hwloc ] && git clone --depth 1 https://github.com/open-mpi/hwloc.git -b v2.7
+cd hwloc; [ ! -f configure ] && ./autogen.sh
+for i in ${!archs[@]}; do
+    abi=${abis[$i]}; host=${hosts[$i]}; cc=${ccs[$i]}; T="$OUT/hwloc/$abi"
+    [ -f "$T/lib/libhwloc.a" ] && skip "hwloc-$abi" && continue
+    mkdir -p "$T"; make clean 2>/dev/null || true
+    CC=$cc CXX=${cc}++ ./configure --prefix="$T" --host="$host" --enable-static --disable-shared \
+        && make -j$(nproc) && make install && ok "hwloc-$abi"
+done
 
-echo "Installo SDK Platform 29, Build-tools 29.0.2, Platform-tools 31.0.3, NDK 23.0.7599858, CMake"
-"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
-    "platforms;android-29" \
-    "build-tools;29.0.2" \
-    "platform-tools" \
-    "ndk;23.0.7599858" \
-    "cmake;3.22.1"
+# ── OpenSSL (CC esplicito!) ──
+echo "  [4/7] OpenSSL..."
+cd "$SRC"
+if [ ! -d openssl ]; then
+    wget -q https://www.openssl.org/source/openssl-1.1.1m.tar.gz -O openssl.tar.gz
+    tar -xzf openssl.tar.gz && mv openssl-1.1.1m openssl && rm openssl.tar.gz
+fi
+cd openssl
+for i in ${!archs[@]}; do
+    abi=${abis[$i]}; sa=${ssl_archs[$i]}; cc=${ccs[$i]}; T="$OUT/openssl/$abi"
+    [ -f "$T/lib/libssl.a" ] && skip "ssl-$abi" && continue
+    mkdir -p "$T"; make clean 2>/dev/null || true
+    CC=$cc ./Configure $sa -D__ANDROID_API__=29 --prefix="$T" \
+        -no-shared -no-asm -no-zlib -no-comp -no-dgram -no-filenames -no-cms \
+        && make -j$(nproc) && make install_sw && ok "ssl-$abi"
+done
 
-echo "Aggiungo variabili ambiente temporaneamente per questa sessione"
-export ANDROID_HOME="$ANDROID_SDK_ROOT"
-export PATH=$PATH:"$ANDROID_HOME/platform-tools"
-export PATH=$PATH:"$ANDROID_HOME/build-tools/29.0.2"
-export PATH=$PATH:"$ANDROID_HOME/ndk/23.0.7599858"
-export PATH=$PATH:"$ANDROID_HOME/cmdline-tools/latest/bin"
+# ── Funzione build xmrig (riusa per xmrig e xmrig-mo) ──
+build_miner() {
+    local name="$1" repo="$2" tag="$3" step="$4"
+    echo "  [$step] $name..."
+    cd "$SRC"
+    if [ ! -d "$name" ]; then
+        git clone --depth 1 "$repo" -b "$tag" "$name"
+        [ "$name" = "xmrig" ] && patch "$name/src/net/strategies/DonateStrategy.cpp" "$LB/xmrig.patch" --force 2>/dev/null || true
+    fi
+    cd "$name"
+    sed -i "s/pthread rt dl log/dl/g" CMakeLists.txt 2>/dev/null || true
+    local XSRC="$SRC/$name"
+    mkdir -p build
+    for i in ${!archs[@]}; do
+        abi=${abis[$i]}; arm=${arms[$i]}
+        [ -f "$XSRC/build/$abi/xmrig" ] && skip "$name-$abi" && continue
+        rm -rf "$XSRC/build/$abi"
+        mkdir -p "$XSRC/build/$abi"
+        cd "$XSRC/build/$abi"
+        $CMAKE -DCMAKE_TOOLCHAIN_FILE="$TC_CMAKE" \
+            -DANDROID_ABI="$abi" -DANDROID_PLATFORM="$AP" \
+            -DANDROID_CROSS_COMPILE=ON -DBUILD_SHARED_LIBS=OFF \
+            -DWITH_OPENCL=OFF -DWITH_CUDA=OFF -DBUILD_STATIC=OFF -DWITH_TLS=ON \
+            -DHWLOC_LIBRARY="$OUT/hwloc/$abi/lib/libhwloc.a" \
+            -DHWLOC_INCLUDE_DIR="$OUT/hwloc/$abi/include" \
+            -DUV_LIBRARY="$OUT/libuv/$abi/lib/libuv_a.a" \
+            -DUV_INCLUDE_DIR="$OUT/libuv/$abi/include" \
+            -DOPENSSL_ROOT_DIR="$OUT/openssl/$abi" \
+            -DOPENSSL_INCLUDE_DIR="$OUT/openssl/$abi/include" \
+            -DOPENSSL_CRYPTO_LIBRARY="$OUT/openssl/$abi/lib/libcrypto.a" \
+            -DOPENSSL_SSL_LIBRARY="$OUT/openssl/$abi/lib/libssl.a" \
+            -DARM_TARGET=$arm \
+            "$XSRC" && make -j$(nproc) && ok "$name-$abi" || echo "    ❌ $name-$abi"
+        cd "$XSRC"
+    done
+}
 
-echo "Verifica installazioni"
-node -v
-npm -v
-adb --version
-cmake --version
-"$ANDROID_SDK_ROOT/ndk/23.0.7599858/ndk-build" --version
+build_miner "xmrig" "https://github.com/xmrig/xmrig.git" "v6.17.0" "5/7"
+build_miner "xmrig-mo" "https://github.com/MoneroOcean/xmrig.git" "v6.16.5-mo1" "6/7"
 
-# Aggiunta variabili permanenti nel .bashrc con controllo
-if ! grep -q 'Variabili ambiente Android SDK' ~/.bashrc; then
-  cat >> ~/.bashrc <<EOF
+# ── Install ──
+echo "  [7/7] Install jniLibs + APK..."
+ERRORS=0
+for i in ${!archs[@]}; do
+    abi=${abis[$i]}; JNI="$P/android/app/src/main/jniLibs/$abi"; mkdir -p "$JNI"
+    for bin in xmrig xmrig-mo; do
+        s="$SRC/$bin/build/$abi/xmrig"; d="$JNI/lib${bin}.so"
+        [ "$bin" = "xmrig-mo" ] && d="$JNI/libxmrig-mo.so"
+        [ -f "$s" ] && cp "$s" "$d" && ok "$abi/$bin" || { echo "    ❌ $abi/$bin"; ERRORS=$((ERRORS+1)); }
+    done
+done
 
-# Variabili ambiente Android SDK
-export ANDROID_HOME="\$HOME/Android/Sdk"
-export PATH="\$PATH:\$ANDROID_HOME/platform-tools"
-export PATH="\$PATH:\$ANDROID_HOME/build-tools/29.0.2"
-export PATH="\$PATH:\$ANDROID_HOME/ndk/23.0.7599858"
-export PATH="\$PATH:\$ANDROID_HOME/cmdline-tools/latest/bin"
-EOF
-  echo "Blocco variabili ambiente aggiunto a ~/.bashrc"
+# ── npm + APK ──
+cd "$P"
+npm install --legacy-peer-deps 2>&1 | tail -3
+npm install react-native-document-picker react-native-fs --legacy-peer-deps 2>/dev/null || true
+
+if [ $ERRORS -eq 0 ]; then
+    cd android && ./gradlew assembleRelease 2>&1 | tail -15
 else
-  echo "Blocco variabili ambiente già presente in ~/.bashrc, nessuna modifica fatta."
+    echo "  ⚠️  $ERRORS binari mancanti"
 fi
 
-echo "Installazione completata!"
-echo "Sto eseguendo 'source ~/.bashrc' per applicare subito le variabili ambiente..."
+echo ""
+echo "============================================"
+echo "  BUILD REPORT: $ERRORS errori"
+[ $ERRORS -eq 0 ] && echo "  ✅ TUTTO OK!" || echo "  ⚠️  Rilancia bash android.sh"
+echo "============================================"
+'
 
-# Provo a fare source, ma se lo script è eseguito in modo che non funziona, utente lo rifarà manualmente
-if [ "$SHELL" = "/bin/bash" ]; then
-  source ~/.bashrc && echo "Variabili ambiente applicate."
-else
-  echo "Attenzione: shell diversa da bash, esegui manualmente 'source ~/.bashrc' o riavvia il terminale."
-fi
+echo ""
+echo "══ [4/4] Risultato ══"
+APK=$(find "$PROJECT_DIR/android/app/build/outputs/apk" -name "*.apk" 2>/dev/null | head -1)
+[ -n "$APK" ] && echo "✅ APK: $APK" && ls -lh "$APK" || echo "⚠️ Rilancia"
