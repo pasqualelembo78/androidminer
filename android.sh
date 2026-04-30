@@ -1,6 +1,7 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════
-# MevaCoin Miner — Build Completo Docker v6
+# MevaCoin Miner — Build Completo Docker v9
+# Pool mining + config.ts integrato + blur fix
 # Idempotente: rilancia quante volte vuoi, riparte da dove serve
 # Solo ARM + ARM64 (telefoni reali)
 # ══════════════════════════════════════════════════════════
@@ -10,7 +11,7 @@ cd "$PROJECT_DIR"
 
 # ── Config MevaCoin ──
 MEVA_ALGO="rx/0"
-MEVA_DAEMON="seed1.mevacoin.com:18081"
+MEVA_POOL="82.165.218.56:3333"
 MEVA_WALLET="43BENWt4rHsNPxSXQLsc4GXpCHME54zWSdxjcGtmrU2YQg1N67vnLBB1phe29emp2wQ7xzJrXGHVF8LLo6k3smBHJDy3gKM"
 MEVA_APP_NAME="MevaCoinMiner"
 MEVA_DISPLAY_NAME="MevaCoin Miner"
@@ -24,14 +25,30 @@ docker build -t mevaminer-builder .
 
 echo "══ [2/4] Config MevaCoin ══"
 # Idempotente: applica solo se non già fatto
-grep -q "$MEVA_ALGO" src/core/xmrig-config/config.ts 2>/dev/null || {
-    sed -i "s|\"cryptonight-pico/trtl\"|\"$MEVA_ALGO\"|" src/core/xmrig-config/config.ts
-    sed -i "s|\"url\": \"\"|\"url\": \"$MEVA_DAEMON\"|" src/core/xmrig-config/config.ts
-    sed -i "s|\"user\": \"\"|\"user\": \"$MEVA_WALLET\"|" src/core/xmrig-config/config.ts
-    sed -i "s|\"daemon\": false|\"daemon\": true|" src/core/xmrig-config/config.ts
-    sed -i "s|\"donate-level\": 5|\"donate-level\": 0|" src/core/xmrig-config/config.ts
-    echo "  ✅ config.ts aggiornato per MevaCoin"
-}
+# Sovrascrive config.ts con i default MevaCoin (Simple mode pronto all'uso)
+cat > src/core/xmrig-config/config.ts << 'CONFIGTS'
+/* eslint-disable quotes */
+/* eslint-disable quote-props */
+export const config = {
+  "api": { "id": null, "worker-id": null },
+  "http": { "enabled": true, "host": "127.0.0.1", "port": 50080, "access-token": null, "restricted": true },
+  "autosave": true, "background": false, "colors": true, "title": true,
+  "cpu": { "enabled": true, "priority": 1, "memory-pool": true, "yield": true, "max-threads-hint": 75, "asm": true },
+  "opencl": { "enabled": false }, "cuda": { "enabled": false },
+  "donate-level": 0, "donate-over-proxy": 0, "log-file": null,
+  "pools": [{
+    "algo": "rx/0", "coin": null, "url": "82.165.218.56:3333",
+    "user": "43BENWt4rHsNPxSXQLsc4GXpCHME54zWSdxjcGtmrU2YQg1N67vnLBB1phe29emp2wQ7xzJrXGHVF8LLo6k3smBHJDy3gKM",
+    "pass": "x", "rig-id": null, "nicehash": false, "keepalive": true,
+    "enabled": true, "tls": false, "daemon": false
+  }],
+  "print-time": 60, "health-print-time": 60, "dmi": true, "retries": 5, "retry-pause": 5,
+  "syslog": false, "tls": { "enabled": false }, "user-agent": null, "verbose": 1,
+  "watch": true, "rebench-algo": false, "bench-algo-time": 20,
+  "pause-on-battery": false, "pause-on-active": false
+};
+CONFIGTS
+echo "  ✅ config.ts → rx/0, pool MevaCoin, donate 0%"
 grep -q "$MEVA_DISPLAY_NAME" app.json 2>/dev/null || {
     sed -i "s|XMRig for Android|$MEVA_DISPLAY_NAME|g" app.json
     echo "  ✅ app.json displayName aggiornato"
@@ -41,6 +58,12 @@ grep -q "MevaCoinMiner" app.json 2>/dev/null && {
     sed -i 's|"name": "MevaCoinMiner"|"name": "XMRigForAndroid"|g' app.json
     echo "  🔧 Ripristinato name interno per React Native"
 }
+
+# Fix: rimuovi @react-native-community/blur (JCenter chiuso)
+if [ -d "node_modules/@react-native-community/blur" ]; then
+    npm uninstall @react-native-community/blur --legacy-peer-deps 2>/dev/null || true
+    echo "  🔧 Rimosso @react-native-community/blur (JCenter deprecato)"
+fi
 
 echo "══ [3/4] Build XMRig + APK ══"
 docker run --rm -v "$PROJECT_DIR:/project" -w /build mevaminer-builder bash -c '
@@ -179,6 +202,16 @@ done
 cd "$P"
 npm install --legacy-peer-deps 2>&1 | tail -3
 npm install react-native-document-picker react-native-fs --legacy-peer-deps 2>/dev/null || true
+npm uninstall @react-native-community/blur --legacy-peer-deps 2>/dev/null || true
+echo "  🔧 Rimosso @react-native-community/blur (JCenter deprecato)"
+
+# Fix: ripristina gradlew se corrotto/mancante (npm operations possono corromperlo)
+if [ ! -f "$P/android/gradlew" ] || [ $(wc -c < "$P/android/gradlew") -lt 1000 ]; then
+    echo "  🔧 Ripristino gradlew da git..."
+    cd "$P" && git checkout -- android/gradlew android/gradle/ 2>/dev/null || \
+        curl -sL -o "$P/android/gradlew" "https://raw.githubusercontent.com/pasqualelembo78/androidminer/main/android/gradlew"
+    chmod +x "$P/android/gradlew"
+fi
 
 if [ $ERRORS -eq 0 ]; then
     cd android && ./gradlew assembleRelease 2>&1 | tail -15
