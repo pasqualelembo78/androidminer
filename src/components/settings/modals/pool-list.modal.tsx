@@ -11,6 +11,7 @@ import {
   IPoolState,
   IPredefinedPool,
   IPredefinedPoolInfo,
+  MevaCoin,
   MineXMR,
   MoneroOcean,
   Nano,
@@ -131,6 +132,8 @@ const PoolListModal:React.FC<PoolListModalProps> = (
               && <HashVault onChange={onChange} /> }
             {selected && selected === PredefinedPoolName.Hashcity
               && <Hashcity onChange={onChange} /> }
+            {selected && selected === PredefinedPoolName.MevaCoin
+              && <MevaCoin onChange={onChange} /> }
           </View>
 
         </View>

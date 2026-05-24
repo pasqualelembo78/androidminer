@@ -22,6 +22,7 @@ export enum PredefinedPoolName {
     XMRPoolEU = 'xmrpooleu',
     HashVault = 'hashvalt',
     Hashcity = 'hashcity',
+    MevaCoin = 'mevacoin',
 }
 
 export type IPredefinedPoolInfo = {
@@ -63,6 +64,9 @@ export const predefinedPools:IPredefinedPools = {
   [PredefinedPoolName.Hashcity]: {
     displayName: 'HashCity', fee: 1, method: 'FPPS', threshold: 0.01,
   },
+  [PredefinedPoolName.MevaCoin]: {
+    displayName: 'MevaCoin Pool', fee: 0, method: 'PPLNS', threshold: 0.1,
+  },
 };
 
 export const predefinedPoolsList: IPredefinedPool[] = Object
@@ -103,6 +107,10 @@ export {
 export {
   Hashcity,
 } from './hashcity';
+
+export {
+  MevaCoin,
+} from './mevacoin';
 
 export const sharedStyles = StyleSheet.create({
   withUnderline: {
