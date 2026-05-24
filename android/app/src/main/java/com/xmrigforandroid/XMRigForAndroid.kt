@@ -34,17 +34,17 @@ import kotlinx.coroutines.runBlocking
 
 class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
 
-    var miningService:IMiningService? = null
+    var miningService: IMiningService? = null
     var xmrigAPIService: IXMRigAPIService? = null
     val configBuilder = XMRigConfigBuilder(this.reactApplicationContext.applicationContext)
     var isMining = false
 
-    private val serverConnection = object: ServiceConnection {
+    private val serverConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName?, service: IBinder?) {
             if (className != null) {
                 Log.d("className", className.className)
-            };
-            when(className?.className) {
+            }
+            when (className?.className) {
                 "com.xmrigforandroid.MiningService" -> {
                     miningService = IMiningService.Stub.asInterface(service)
                 }
@@ -53,8 +53,9 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
                 }
             }
         }
+
         override fun onServiceDisconnected(className: ComponentName?) {
-            when(className?.className) {
+            when (className?.className) {
                 "com.xmrigforandroid.MiningService" -> {
                     miningService = null
                 }
@@ -63,19 +64,19 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
                 }
             }
         }
-    };
+    }
 
     init {
         runBlocking(Dispatchers.IO) {
             arrayOf(
-                    MiningService::class.java,
-                    XMRigAPIService::class.java,
-                    ThermalService::class.java
+                MiningService::class.java,
+                XMRigAPIService::class.java,
+                ThermalService::class.java
             ).onEach {
-                launch(newSingleThreadContext("Thread-"+it.toString())) {
+                launch(newSingleThreadContext("Thread-" + it.toString())) {
                     val intent = Intent(context, it)
                     context.bindService(intent, serverConnection, Context.BIND_AUTO_CREATE)
-                    when(it) {
+                    when (it) {
                         MiningService::class.java -> {
                             context.startForegroundService(intent)
                         }
@@ -83,7 +84,6 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
                             context.startService(intent)
                         }
                     }
-
                 }
             }
         }
@@ -91,132 +91,145 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
 
     private val fileObserver: FileObserver = object : FileObserver(File(configBuilder.getConfigPath()), MODIFY) {
         override fun onEvent(event: Int, path: String?) {
-            Log.d("FileObserver", "fileObserver: ${event} ${path} | isMining: ${isMining}")
-            if (!isMining)  {
-                return
-            }
+            Log.d("FileObserver", "fileObserver: $event $path | isMining: $isMining")
+            if (!isMining) return
             val payload = Arguments.createMap()
             payload.putString("config", configBuilder.readConfigFromDisk())
             reactApplicationContext
-                    .getJSModule(RCTDeviceEventEmitter::class.java)
-                    .emit("onConfigUpdate", payload)
+                .getJSModule(RCTDeviceEventEmitter::class.java)
+                .emit("onConfigUpdate", payload)
         }
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onMessageEvent(event: StdoutEvent) {
-        Log.d(this.name, "event name: " + event.javaClass.simpleName)
         val payload = Arguments.createMap()
         val strArr = arrayOf(event.value)
         payload.putArray("log", Arguments.fromArray(strArr))
         reactApplicationContext
-                .getJSModule(RCTDeviceEventEmitter::class.java)
-                .emit("onLog", payload)
+            .getJSModule(RCTDeviceEventEmitter::class.java)
+            .emit("onLog", payload)
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onMinerStartEvent(event: MinerStartEvent) {
-        Log.d(this.name, "event name: " + event.javaClass.simpleName)
         this.isMining = true
         xmrigAPIService?.startSummaryUpdates()
-
         val payload = Arguments.createMap()
         payload.putBoolean("isWorking", true)
         reactApplicationContext
-                .getJSModule(RCTDeviceEventEmitter::class.java)
-                .emit("onStatusChange", payload)
+            .getJSModule(RCTDeviceEventEmitter::class.java)
+            .emit("onStatusChange", payload)
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onMinerStopEvent(event: MinerStopEvent) {
-        Log.d(this.name, "event name: " + event.javaClass.simpleName)
         this.isMining = false
         xmrigAPIService?.stopSummaryUpdates()
-
         val payload = Arguments.createMap()
         payload.putBoolean("isWorking", false)
         reactApplicationContext
-                .getJSModule(RCTDeviceEventEmitter::class.java)
-                    .emit("onStatusChange", payload)
+            .getJSModule(RCTDeviceEventEmitter::class.java)
+            .emit("onStatusChange", payload)
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onPowerEvent(event: PowerEvent) {
-        Log.d(this.name, "event name: " + event.javaClass.simpleName)
         val payload = Arguments.createMap()
         payload.putString("action", event.action.toString())
         if (event.value != null) {
             payload.putDouble("value", event.value!!.toDouble())
         }
         reactApplicationContext
-                .getJSModule(RCTDeviceEventEmitter::class.java)
-                .emit("onPower", payload)
+            .getJSModule(RCTDeviceEventEmitter::class.java)
+            .emit("onPower", payload)
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onMinerSummaryEvent(event: MinerSummaryEvent) {
-        Log.d(this.name, "event name: " + event.javaClass.simpleName)
         if (event.value != null) {
             val payload = Arguments.createMap()
             payload.putString("data", event.value)
-
             reactApplicationContext
-                    .getJSModule(RCTDeviceEventEmitter::class.java)
-                    .emit("onSummary", payload)
+                .getJSModule(RCTDeviceEventEmitter::class.java)
+                .emit("onSummary", payload)
         }
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onThermalEvent(event: ThermalEvent) {
-        Log.d(this.name, "event name: " + event.javaClass.simpleName)
         val payload = Arguments.createMap()
         payload.putDouble("cpuTemperature", event.cpuTemperature.toDouble())
-
         reactApplicationContext
-                .getJSModule(RCTDeviceEventEmitter::class.java)
-                .emit("onThermal", payload)
+            .getJSModule(RCTDeviceEventEmitter::class.java)
+            .emit("onThermal", payload)
     }
 
     @ReactMethod
     fun start(configurationJSON: String) {
-        fileObserver.startWatching()
-        val jsonFormat = Json { explicitNulls = false }
-        val data = jsonFormat.decodeFromString<Configuration>(configurationJSON)
-
-        Log.d(this.name, "Start XMRig (${data.xmrig_fork.toString().lowercase(Locale.getDefault())}) $configurationJSON")
-
-        //val configBuilder = XMRigConfigBuilder(this.reactApplicationContext.applicationContext)
-        configBuilder.reset()
-        configBuilder.setConfiguration(data)
-        val configPath = configBuilder.writeConfig()
-        Log.d(this.name, configBuilder.getConfigString())
         try {
+            fileObserver.startWatching()
+            val jsonFormat = Json { explicitNulls = false }
+            val data = jsonFormat.decodeFromString<Configuration>(configurationJSON)
+
+            Log.d(name, "Start XMRig (${data.xmrig_fork.toString().lowercase(Locale.getDefault())})")
+            Log.d(name, "configurationJSON ricevuto: ${configurationJSON.take(300)}")
+
+            configBuilder.reset()
+            configBuilder.setConfiguration(data)
+
+            val configPath = configBuilder.writeConfig()
+
+            // FIX: Verifica che writeConfig() abbia prodotto un percorso valido.
+            // Se è vuoto, la config non è stata scritta (JSON non valido o config vuota).
+            // In questo caso non avviare xmrig per evitare di lanciare un processo
+            // senza config che poi cade nei percorsi di fallback.
+            if (configPath.isBlank()) {
+                Log.e(name, "ERRORE: writeConfig ha restituito percorso vuoto. " +
+                        "Verifica che la configurazione del pool sia completa " +
+                        "(wallet address, hostname, porta).")
+                // Notifica il lato JS che qualcosa è andato storto
+                val payload = Arguments.createMap()
+                payload.putBoolean("isWorking", false)
+                reactApplicationContext
+                    .getJSModule(RCTDeviceEventEmitter::class.java)
+                    .emit("onStatusChange", payload)
+                return
+            }
+
+            Log.d(name, "Config scritta su: $configPath")
+            Log.d(name, "Config content: ${configBuilder.getConfigString().take(400)}")
+
             miningService?.startMiner(configPath, data.xmrig_fork.toString())
+
         } catch (e: RemoteException) {
-            e.printStackTrace()
+            Log.e(name, "RemoteException in start(): ${e.message}")
+        } catch (e: Exception) {
+            // FIX: Cattura qualsiasi eccezione per evitare crash silenziosi
+            // che lasciano xmrig precedente in esecuzione senza nuova config.
+            Log.e(name, "Eccezione in start(): ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
     @ReactMethod
     fun stop() {
-        Log.d(this.name, "Stop has benn called from RN")
+        Log.d(name, "Stop chiamato da RN")
         try {
             miningService?.stopMiner()
             xmrigAPIService?.stopSummaryUpdates()
         } catch (e: RemoteException) {
-            e.printStackTrace()
+            Log.e(name, "RemoteException in stop(): ${e.message}")
         }
         EventBus.getDefault().post(MinerStopEvent())
     }
 
     @ReactMethod
     fun availableProcessors(promise: Promise) {
-        Log.d(this.name, "availableProcessors=" + Runtime.getRuntime().availableProcessors().toString())
         try {
             val availableProcessors = Integer.valueOf(Runtime.getRuntime().availableProcessors())
             promise.resolve(availableProcessors)
         } catch (e: Exception) {
-            promise.reject("Runtime.getRuntime().availableProcessors()", e)
+            promise.reject("availableProcessors", e)
         }
     }
 
@@ -230,9 +243,7 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
         xmrigAPIService?.resumeMiner()
     }
 
-    override fun getName(): String {
-        return "XMRigForAndroid";
-    }
+    override fun getName(): String = "XMRigForAndroid"
 
     override fun initialize() {
         super.initialize()
@@ -246,7 +257,7 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
 
     @ReactMethod
     fun addListener(eventName: String?) {
-        when(eventName) {
+        when (eventName) {
             "onPower" -> {
                 val bm = reactApplicationContext.getSystemService(BATTERY_SERVICE) as BatteryManager
                 val batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
@@ -258,20 +269,17 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
                 val chargePlug: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: -1
 
                 EventBus.getDefault().post(PowerEvent(PowerEventAction.BATTERY_CHANGED, batteryLevel))
-                if (chargePlug > 0)   {
+                if (chargePlug > 0) {
                     EventBus.getDefault().post(PowerEvent(PowerEventAction.POWER_CONNECTED))
                 } else {
                     EventBus.getDefault().post(PowerEvent(PowerEventAction.POWER_DISCONNECTED))
                 }
             }
         }
-
     }
 
     @ReactMethod
     fun removeListeners(count: Int?) {
         // Keep: Required for RN built in Event Emitter Calls.
     }
-
-
 }

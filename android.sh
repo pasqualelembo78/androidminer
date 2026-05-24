@@ -12,7 +12,7 @@ cd "$PROJECT_DIR"
 # ── Config MevaCoin ──
 MEVA_ALGO="rx/0"
 MEVA_POOL="82.165.218.56:3333"
-MEVA_WALLET="43BENWt4rHsNPxSXQLsc4GXpCHME54zWSdxjcGtmrU2YQg1N67vnLBB1phe29emp2wQ7xzJrXGHVF8LLo6k3smBHJDy3gKM"
+MEVA_WALLET="MDyBkjNfkKvEW95g3z4AiZMZivh665FcdJtRMim7d2yS6MVeAPpJY9qgC1mVeDBSYaSxFpEsds76cAN8KjyBxXpbBpi67dZ"
 MEVA_APP_NAME="MevaCoinMiner"
 MEVA_DISPLAY_NAME="MevaCoin Miner"
 
@@ -38,7 +38,7 @@ export const config = {
   "donate-level": 0, "donate-over-proxy": 0, "log-file": null,
   "pools": [{
     "algo": "rx/0", "coin": null, "url": "82.165.218.56:3333",
-    "user": "43BENWt4rHsNPxSXQLsc4GXpCHME54zWSdxjcGtmrU2YQg1N67vnLBB1phe29emp2wQ7xzJrXGHVF8LLo6k3smBHJDy3gKM",
+    "user": "MDyBkjNfkKvEW95g3z4AiZMZivh665FcdJtRMim7d2yS6MVeAPpJY9qgC1mVeDBSYaSxFpEsds76cAN8KjyBxXpbBpi67dZ",
     "pass": "x", "rig-id": null, "nicehash": false, "keepalive": true,
     "enabled": true, "tls": false, "daemon": false
   }],
