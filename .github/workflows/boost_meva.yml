@@ -1,0 +1,83 @@
+name: Boost Mevacoin Android ARM64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_NDK_VERSION: r23c
+      BOOST_VERSION_UNDERSCORE: 1_82_0
+      ANDROID_API: 24
+      BOOST_ROOT: $HOME/boost-android
+
+    steps:
+      - name: Checkout Mevacoin repository
+        uses: actions/checkout@v4
+        with:
+          repository: pasqualelembo78/mevacoin
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget tar bzip2 build-essential python3 cmake unzip ninja-build git
+
+      - name: Download Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip
+          unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux.zip
+          mv android-ndk-${ANDROID_NDK_VERSION} $HOME/android-ndk
+          echo "NDK path: $HOME/android-ndk"
+
+      - name: Download Boost source
+        run: |
+          wget https://archives.boost.io/release/1.82.0/source/boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
+          tar xjf boost_${BOOST_VERSION_UNDERSCORE}.tar.bz2
+
+      - name: Build Boost for Android ARM64
+        run: |
+          cd boost_${BOOST_VERSION_UNDERSCORE}
+          ./bootstrap.sh
+          ./b2 toolset=clang target-os=android architecture=arm address-model=64 \
+              cxxflags="-std=c++14" \
+              threading=multi link=static runtime-link=static \
+              --with-system --with-filesystem --with-thread --with-date_time \
+              --with-chrono --with-regex --with-serialization --with-program_options \
+              --prefix=$BOOST_ROOT install
+          echo "Boost build complete."
+
+      - name: Show Boost directories
+        run: |
+          echo "📂 Boost include:"
+          ls -l $BOOST_ROOT/include | head -n 20
+          echo "📂 Boost lib:"
+          ls -l $BOOST_ROOT/lib | head -n 20
+
+      - name: Configure CMake for Mevacoin
+        run: |
+          mkdir -p build && cd build
+          cmake .. \
+            -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=$HOME/android-ndk/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-${ANDROID_API} \
+            -DBoost_NO_SYSTEM_PATHS=ON \
+            -DBOOST_ROOT=$BOOST_ROOT \
+            -DBOOST_INCLUDEDIR=$BOOST_ROOT/include \
+            -DBOOST_LIBRARYDIR=$BOOST_ROOT/lib \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Mevacoin
+        run: |
+          cd build
+          cmake --build . -- -j$(nproc)
+
+      - name: Upload Mevacoin Android binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: mevacoin-android
+          path: build
+          retention-days: 30
